@@ -1,0 +1,252 @@
+import { useState } from "react";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  FileText,
+  Play,
+  Download,
+  Trash2,
+  Clock,
+  Crown,
+  Plus,
+  MoreVertical,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+// Mock data for demonstration
+const mockAudioFiles = [
+  {
+    id: "1",
+    name: "The Art of War - Chapter 1",
+    duration: "12:34",
+    createdAt: "2024-01-15",
+    size: "5.2 MB",
+  },
+  {
+    id: "2",
+    name: "Marketing Strategy Guide",
+    duration: "08:21",
+    createdAt: "2024-01-14",
+    size: "3.4 MB",
+  },
+  {
+    id: "3",
+    name: "Annual Report Summary",
+    duration: "15:47",
+    createdAt: "2024-01-12",
+    size: "6.8 MB",
+  },
+];
+
+const Dashboard = () => {
+  const [audioFiles] = useState(mockAudioFiles);
+  
+  const isPremium = false;
+  const uploadsUsed = 2;
+  const uploadLimit = 3;
+  const usagePercent = (uploadsUsed / uploadLimit) * 100;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      
+      <main className="pt-24 pb-16">
+        <div className="container mx-auto px-4">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col md:flex-row md:items-center justify-between mb-8"
+          >
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+              <p className="text-muted-foreground">
+                Manage your audio files and track your usage
+              </p>
+            </div>
+            <Link to="/converter" className="mt-4 md:mt-0">
+              <Button variant="gradient">
+                <Plus className="w-4 h-4 mr-2" />
+                New Conversion
+              </Button>
+            </Link>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Content - Audio Files */}
+            <div className="lg:col-span-2 space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="glass rounded-2xl p-6 card-shadow"
+              >
+                <h2 className="text-xl font-semibold mb-6">Your Audio Files</h2>
+                
+                {audioFiles.length > 0 ? (
+                  <div className="space-y-4">
+                    {audioFiles.map((file, index) => (
+                      <motion.div
+                        key={file.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-center gap-4 p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors group"
+                      >
+                        {/* Icon */}
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-primary" />
+                        </div>
+                        
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{file.name}</p>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {file.duration}
+                            </span>
+                            <span>{file.size}</span>
+                            <span>{file.createdAt}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon">
+                            <Play className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="glass">
+                              <DropdownMenuItem>
+                                <Download className="w-4 h-4 mr-2" />
+                                Download
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive">
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+                      <FileText className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground mb-4">
+                      No audio files yet. Start by converting your first document!
+                    </p>
+                    <Link to="/converter">
+                      <Button variant="gradient">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Your First Audio
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Usage Stats */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="glass rounded-2xl p-6 card-shadow"
+              >
+                <h3 className="font-semibold mb-4">Usage</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">PDF Uploads</span>
+                      <span className="font-medium">{uploadsUsed} / {uploadLimit}</span>
+                    </div>
+                    <Progress value={usagePercent} className="h-2" />
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-secondary/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Plan</span>
+                      <span className="text-sm font-medium">{isPremium ? "Pro" : "Free"}</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Upgrade Card */}
+              {!isPremium && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="rounded-2xl p-6 bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4">
+                    <Crown className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <h3 className="font-semibold text-lg mb-2">Upgrade to Pro</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Get unlimited uploads, premium voices, and priority processing.
+                  </p>
+                  <Link to="/pricing">
+                    <Button variant="gradient" className="w-full">
+                      View Plans
+                    </Button>
+                  </Link>
+                </motion.div>
+              )}
+
+              {/* Quick Stats */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="glass rounded-2xl p-6 card-shadow"
+              >
+                <h3 className="font-semibold mb-4">Statistics</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 rounded-lg bg-secondary/50">
+                    <div className="text-2xl font-bold gradient-text">{audioFiles.length}</div>
+                    <div className="text-xs text-muted-foreground">Total Files</div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-secondary/50">
+                    <div className="text-2xl font-bold gradient-text">36:42</div>
+                    <div className="text-xs text-muted-foreground">Total Duration</div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default Dashboard;
