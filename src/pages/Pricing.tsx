@@ -26,7 +26,7 @@ const plans = [
   {
     name: "Pro",
     description: "For regular users and content creators",
-    monthlyPrice: 9.99,
+    monthlyPrice: 6.99,
     yearlyPrice: 99,
     features: [
       "Unlimited PDF uploads",
@@ -43,7 +43,7 @@ const plans = [
   {
     name: "Enterprise",
     description: "For teams and organizations",
-    monthlyPrice: 29.99,
+    monthlyPrice: 20.99,
     yearlyPrice: 299,
     features: [
       "Everything in Pro",
