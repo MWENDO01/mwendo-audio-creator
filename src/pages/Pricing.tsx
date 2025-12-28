@@ -3,7 +3,8 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Phone, Mail, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 const plans = [
@@ -165,12 +166,85 @@ const Pricing = () => {
             ))}
           </div>
 
+          {/* Payment Methods Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-16 max-w-2xl mx-auto"
+          >
+            <h2 className="text-2xl font-bold text-center mb-8">
+              Payment <span className="gradient-text">Methods</span>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* M-Pesa */}
+              <div className="glass rounded-xl p-6 text-center">
+                <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                  <Phone className="w-7 h-7 text-green-500" />
+                </div>
+                <h3 className="font-bold text-lg mb-2">M-Pesa</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Send payment to our M-Pesa number
+                </p>
+                <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg p-3">
+                  <span className="font-mono font-bold text-lg">+254743664594</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText("+254743664594");
+                      toast.success("M-Pesa number copied!");
+                    }}
+                    className="p-1.5 hover:bg-secondary rounded-md transition-colors"
+                  >
+                    <Copy className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Name: David Mwendo
+                </p>
+              </div>
+
+              {/* PayPal */}
+              <div className="glass rounded-xl p-6 text-center">
+                <div className="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
+                  <Mail className="w-7 h-7 text-blue-500" />
+                </div>
+                <h3 className="font-bold text-lg mb-2">PayPal</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Send payment to our PayPal account
+                </p>
+                <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg p-3">
+                  <span className="font-mono text-sm md:text-base">davidmwendo64@gmail.com</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText("davidmwendo64@gmail.com");
+                      toast.success("PayPal email copied!");
+                    }}
+                    className="p-1.5 hover:bg-secondary rounded-md transition-colors"
+                  >
+                    <Copy className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <a
+                  href="https://paypal.me/davidmwendo64"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-3 text-sm text-primary hover:underline"
+                >
+                  Pay via PayPal.me →
+                </a>
+              </div>
+            </div>
+            <p className="text-center text-sm text-muted-foreground mt-6">
+              After payment, send your receipt to <strong>davidmwendo64@gmail.com</strong> to activate your subscription.
+            </p>
+          </motion.div>
+
           {/* FAQ Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mt-24 max-w-3xl mx-auto"
+            className="mt-16 max-w-3xl mx-auto"
           >
             <h2 className="text-2xl font-bold text-center mb-8">
               Frequently Asked Questions
@@ -179,7 +253,7 @@ const Pricing = () => {
               {[
                 {
                   q: "What payment methods do you accept?",
-                  a: "We accept all major credit cards, PayPal, and M-Pesa for users in Kenya."
+                  a: "We accept M-Pesa (+254743664594) and PayPal (davidmwendo64@gmail.com) for all subscription payments."
                 },
                 {
                   q: "Can I cancel my subscription anytime?",
