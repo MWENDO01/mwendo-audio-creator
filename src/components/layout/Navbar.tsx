@@ -1,12 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { AudioLines, Menu, X } from "lucide-react";
+import { AudioLines, Menu, X, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -16,6 +26,11 @@ const Navbar = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
@@ -43,11 +58,41 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden md:block">
-            <Link to="/converter">
-              <Button variant="gradient">Get Started</Button>
-            </Link>
+          {/* Auth Buttons */}
+          <div className="hidden md:flex items-center gap-2">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <User className="w-4 h-4" />
+                    <span className="max-w-[150px] truncate">
+                      {user.email?.split("@")[0]}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="w-full cursor-pointer">
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-500">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="ghost">Sign In</Button>
+                </Link>
+                <Link to="/auth">
+                  <Button variant="gradient">Get Started</Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -80,11 +125,39 @@ const Navbar = () => {
                   </Button>
                 </Link>
               ))}
-              <Link to="/converter" onClick={() => setIsOpen(false)}>
-                <Button variant="gradient" className="w-full mt-2">
-                  Get Started
-                </Button>
-              </Link>
+              
+              {user ? (
+                <>
+                  <div className="border-t border-border my-2" />
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Signed in as {user.email}
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-red-500"
+                    onClick={() => {
+                      handleSignOut();
+                      setIsOpen(false);
+                    }}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/auth" onClick={() => setIsOpen(false)}>
+                    <Button variant="ghost" className="w-full">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/auth" onClick={() => setIsOpen(false)}>
+                    <Button variant="gradient" className="w-full mt-2">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}
