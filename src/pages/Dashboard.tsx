@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   Crown,
   Plus,
   MoreVertical,
+  Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -21,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Mock data for demonstration
 const mockAudioFiles = [
@@ -49,11 +52,34 @@ const mockAudioFiles = [
 
 const Dashboard = () => {
   const [audioFiles] = useState(mockAudioFiles);
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
   
   const isPremium = false;
   const uploadsUsed = 2;
   const uploadLimit = 3;
   const usagePercent = (uploadsUsed / uploadLimit) * 100;
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -68,7 +94,9 @@ const Dashboard = () => {
             className="flex flex-col md:flex-row md:items-center justify-between mb-8"
           >
             <div>
-              <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+              <h1 className="text-3xl font-bold mb-2">
+                Welcome, <span className="gradient-text">{user.email?.split("@")[0]}</span>
+              </h1>
               <p className="text-muted-foreground">
                 Manage your audio files and track your usage
               </p>
@@ -170,6 +198,22 @@ const Dashboard = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Account Info */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="glass rounded-2xl p-6 card-shadow"
+              >
+                <h3 className="font-semibold mb-4">Account</h3>
+                <div className="space-y-2">
+                  <div className="p-3 rounded-lg bg-secondary/50">
+                    <div className="text-xs text-muted-foreground mb-1">Email</div>
+                    <div className="text-sm font-medium truncate">{user.email}</div>
+                  </div>
+                </div>
+              </motion.div>
+
               {/* Usage Stats */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
