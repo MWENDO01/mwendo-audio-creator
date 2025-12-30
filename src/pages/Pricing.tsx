@@ -3,7 +3,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Check, Sparkles, Phone, Mail, Copy } from "lucide-react";
+import { Check, Sparkles, Phone, Mail, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -22,6 +22,8 @@ const plans = [
     ],
     cta: "Get Started",
     popular: false,
+    monthlyPaymentLink: null,
+    yearlyPaymentLink: null,
   },
   {
     name: "Pro",
@@ -37,8 +39,10 @@ const plans = [
       "Custom voice uploads",
       "Email support",
     ],
-    cta: "Start Free Trial",
+    cta: "Subscribe Now",
     popular: true,
+    monthlyPaymentLink: "https://buy.stripe.com/test_cNicN5cXLarUfEZ0NO5sA00",
+    yearlyPaymentLink: "https://buy.stripe.com/test_4gMbJ1g9XbvYakF5445sA01",
   },
   {
     name: "Enterprise",
@@ -55,13 +59,31 @@ const plans = [
       "Priority support",
       "Custom integrations",
     ],
-    cta: "Contact Sales",
+    cta: "Subscribe Now",
     popular: false,
+    monthlyPaymentLink: "https://buy.stripe.com/test_14A3cvg9XeIa50lgMM5sA02",
+    yearlyPaymentLink: "https://buy.stripe.com/test_8x24gz0aZdE63Wh1RS5sA03",
   },
 ];
 
 const Pricing = () => {
   const [isYearly, setIsYearly] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleSubscribe = (plan: typeof plans[0]) => {
+    if (plan.name === "Free") {
+      window.location.href = "/converter";
+      return;
+    }
+
+    const paymentLink = isYearly ? plan.yearlyPaymentLink : plan.monthlyPaymentLink;
+    
+    if (paymentLink) {
+      setLoadingPlan(plan.name);
+      window.open(paymentLink, "_blank");
+      setTimeout(() => setLoadingPlan(null), 1000);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -159,14 +181,35 @@ const Pricing = () => {
                   variant={plan.popular ? "gradient" : "outline"}
                   className="w-full"
                   size="lg"
+                  onClick={() => handleSubscribe(plan)}
+                  disabled={loadingPlan === plan.name}
                 >
-                  {plan.cta}
+                  {loadingPlan === plan.name ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Redirecting...
+                    </>
+                  ) : (
+                    plan.cta
+                  )}
                 </Button>
               </motion.div>
             ))}
           </div>
 
-          {/* Payment Methods Section */}
+          {/* Secure Payment Notice */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-8 text-center"
+          >
+            <p className="text-sm text-muted-foreground">
+              🔒 Secure payments powered by Stripe. Cancel anytime.
+            </p>
+          </motion.div>
+
+          {/* Alternative Payment Methods Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -174,8 +217,11 @@ const Pricing = () => {
             className="mt-16 max-w-2xl mx-auto"
           >
             <h2 className="text-2xl font-bold text-center mb-8">
-              Payment <span className="gradient-text">Methods</span>
+              Alternative Payment <span className="gradient-text">Methods</span>
             </h2>
+            <p className="text-center text-sm text-muted-foreground mb-6">
+              Prefer to pay via M-Pesa or PayPal? Use the options below.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* M-Pesa */}
               <div className="glass rounded-xl p-6 text-center">
@@ -252,8 +298,8 @@ const Pricing = () => {
             <div className="space-y-4">
               {[
                 {
-                  q: "What payment methods do you accept?",
-                  a: "We accept M-Pesa (+254743664594) and PayPal (davidmwendo64@gmail.com) for all subscription payments."
+                  q: "How do I subscribe?",
+                  a: "Click on 'Subscribe Now' for your preferred plan and you'll be redirected to Stripe's secure checkout. You can pay with credit/debit card."
                 },
                 {
                   q: "Can I cancel my subscription anytime?",
