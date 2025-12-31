@@ -14,6 +14,10 @@ import {
   Plus,
   MoreVertical,
   Loader2,
+  RefreshCw,
+  Calendar,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -24,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
 
 // Mock data for demonstration
 const mockAudioFiles = [
@@ -50,15 +55,41 @@ const mockAudioFiles = [
   },
 ];
 
+const planDetails = {
+  free: {
+    name: "Free",
+    color: "from-gray-400 to-gray-500",
+    icon: FileText,
+    uploadLimit: 3,
+    features: ["3 PDF uploads", "5,000 chars/conversion", "4 voices"],
+  },
+  pro: {
+    name: "Pro",
+    color: "from-primary to-accent",
+    icon: Sparkles,
+    uploadLimit: -1, // unlimited
+    features: ["Unlimited uploads", "50,000 chars/conversion", "15+ voices"],
+  },
+  enterprise: {
+    name: "Enterprise",
+    color: "from-purple-500 to-pink-500",
+    icon: Zap,
+    uploadLimit: -1, // unlimited
+    features: ["Everything in Pro", "API access", "Custom voice cloning"],
+  },
+};
+
 const Dashboard = () => {
   const [audioFiles] = useState(mockAudioFiles);
-  const { user, loading } = useAuth();
+  const { user, loading, subscription, subscriptionLoading, refreshSubscription } = useAuth();
   const navigate = useNavigate();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
-  const isPremium = false;
+  const currentPlan = planDetails[subscription.plan];
   const uploadsUsed = 2;
-  const uploadLimit = 3;
-  const usagePercent = (uploadsUsed / uploadLimit) * 100;
+  const uploadLimit = currentPlan.uploadLimit;
+  const isUnlimited = uploadLimit === -1;
+  const usagePercent = isUnlimited ? 0 : (uploadsUsed / uploadLimit) * 100;
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -66,6 +97,12 @@ const Dashboard = () => {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  const handleRefreshSubscription = async () => {
+    setIsRefreshing(true);
+    await refreshSubscription();
+    setIsRefreshing(false);
+  };
 
   // Show loading while checking auth
   if (loading) {
@@ -80,6 +117,8 @@ const Dashboard = () => {
   if (!user) {
     return null;
   }
+
+  const PlanIcon = currentPlan.icon;
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,11 +237,86 @@ const Dashboard = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Account Info */}
+              {/* Subscription Status Card */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
+                className={`rounded-2xl p-6 card-shadow ${
+                  subscription.subscribed 
+                    ? "bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/30" 
+                    : "glass"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Subscription</h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleRefreshSubscription}
+                    disabled={isRefreshing || subscriptionLoading}
+                  >
+                    <RefreshCw className={`w-4 h-4 ${(isRefreshing || subscriptionLoading) ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+
+                {subscriptionLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Plan Badge */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${currentPlan.color} flex items-center justify-center`}>
+                        <PlanIcon className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-lg">{currentPlan.name}</span>
+                          {subscription.subscribed && (
+                            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {subscription.subscribed ? "Premium Member" : "Free Tier"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Subscription End Date */}
+                    {subscription.subscriptionEnd && (
+                      <div className="p-3 rounded-lg bg-secondary/50 mb-4">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Renews:</span>
+                          <span className="font-medium">
+                            {format(new Date(subscription.subscriptionEnd), "MMM d, yyyy")}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Plan Features */}
+                    <div className="space-y-2 mb-4">
+                      {currentPlan.features.map((feature, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          <span className="text-muted-foreground">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </motion.div>
+
+              {/* Account Info */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
                 className="glass rounded-2xl p-6 card-shadow"
               >
                 <h3 className="font-semibold mb-4">Account</h3>
@@ -218,7 +332,7 @@ const Dashboard = () => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                transition={{ delay: 0.25 }}
                 className="glass rounded-2xl p-6 card-shadow"
               >
                 <h3 className="font-semibold mb-4">Usage</h3>
@@ -227,22 +341,20 @@ const Dashboard = () => {
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-muted-foreground">PDF Uploads</span>
-                      <span className="font-medium">{uploadsUsed} / {uploadLimit}</span>
+                      <span className="font-medium">
+                        {isUnlimited ? `${uploadsUsed} / Unlimited` : `${uploadsUsed} / ${uploadLimit}`}
+                      </span>
                     </div>
-                    <Progress value={usagePercent} className="h-2" />
-                  </div>
-                  
-                  <div className="p-3 rounded-lg bg-secondary/50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Plan</span>
-                      <span className="text-sm font-medium">{isPremium ? "Pro" : "Free"}</span>
-                    </div>
+                    {!isUnlimited && <Progress value={usagePercent} className="h-2" />}
+                    {isUnlimited && (
+                      <div className="h-2 rounded-full bg-gradient-to-r from-primary to-accent" />
+                    )}
                   </div>
                 </div>
               </motion.div>
 
-              {/* Upgrade Card */}
-              {!isPremium && (
+              {/* Upgrade Card - Only show for free users */}
+              {!subscription.subscribed && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -268,7 +380,7 @@ const Dashboard = () => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+                transition={{ delay: 0.35 }}
                 className="glass rounded-2xl p-6 card-shadow"
               >
                 <h3 className="font-semibold mb-4">Statistics</h3>
