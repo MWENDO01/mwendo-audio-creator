@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   FileText,
   Play,
+  Pause,
   Download,
   Trash2,
   Clock,
@@ -40,6 +41,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversions } from "@/hooks/useConversions";
 import { format } from "date-fns";
+import InlineAudioPlayer from "@/components/dashboard/InlineAudioPlayer";
 
 const planDetails = {
   free: {
@@ -72,6 +74,7 @@ const Dashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conversionToDelete, setConversionToDelete] = useState<string | null>(null);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   
   const currentPlan = planDetails[subscription.plan];
   const uploadLimit = currentPlan.uploadLimit;
@@ -171,73 +174,90 @@ const Dashboard = () => {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors group"
+                        className="p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors group"
                       >
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-primary" />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{file.name}</p>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            {file.duration_seconds && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatDuration(file.duration_seconds)}
-                              </span>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shrink-0">
+                            <FileText className="w-6 h-6 text-primary" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{file.name}</p>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              {file.duration_seconds && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {formatDuration(file.duration_seconds)}
+                                </span>
+                              )}
+                              {file.file_size_bytes && <span>{formatFileSize(file.file_size_bytes)}</span>}
+                              <span>{format(new Date(file.created_at), "MMM d, yyyy")}</span>
+                              {file.status !== "completed" && (
+                                <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                  file.status === "processing" ? "bg-yellow-500/20 text-yellow-500" :
+                                  file.status === "failed" ? "bg-red-500/20 text-red-500" :
+                                  "bg-gray-500/20 text-gray-500"
+                                }`}>
+                                  {file.status}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {file.audio_url && (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => setPlayingAudioId(playingAudioId === file.id ? null : file.id)}
+                                >
+                                  {playingAudioId === file.id ? (
+                                    <Pause className="w-4 h-4" />
+                                  ) : (
+                                    <Play className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Button variant="ghost" size="icon" asChild>
+                                  <a href={file.audio_url} download>
+                                    <Download className="w-4 h-4" />
+                                  </a>
+                                </Button>
+                              </>
                             )}
-                            {file.file_size_bytes && <span>{formatFileSize(file.file_size_bytes)}</span>}
-                            <span>{format(new Date(file.created_at), "MMM d, yyyy")}</span>
-                            {file.status !== "completed" && (
-                              <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                file.status === "processing" ? "bg-yellow-500/20 text-yellow-500" :
-                                file.status === "failed" ? "bg-red-500/20 text-red-500" :
-                                "bg-gray-500/20 text-gray-500"
-                              }`}>
-                                {file.status}
-                              </span>
-                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="glass">
+                                {file.audio_url && (
+                                  <DropdownMenuItem asChild>
+                                    <a href={file.audio_url} download>
+                                      <Download className="w-4 h-4 mr-2" />
+                                      Download
+                                    </a>
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={() => handleDeleteClick(file.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {file.audio_url && (
-                            <>
-                              <Button variant="ghost" size="icon">
-                                <Play className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" asChild>
-                                <a href={file.audio_url} download>
-                                  <Download className="w-4 h-4" />
-                                </a>
-                              </Button>
-                            </>
-                          )}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="glass">
-                              {file.audio_url && (
-                                <DropdownMenuItem asChild>
-                                  <a href={file.audio_url} download>
-                                    <Download className="w-4 h-4 mr-2" />
-                                    Download
-                                  </a>
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => handleDeleteClick(file.id)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                        {playingAudioId === file.id && file.audio_url && (
+                          <InlineAudioPlayer
+                            audioUrl={file.audio_url}
+                            onClose={() => setPlayingAudioId(null)}
+                          />
+                        )}
                       </motion.div>
                     ))}
                   </div>
