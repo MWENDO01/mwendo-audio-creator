@@ -10,7 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Type, Wand2, Crown } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAudioStorage } from "@/hooks/useAudioStorage";
+import { supabase } from "@/integrations/supabase/client";
 
 const Converter = () => {
   const [inputText, setInputText] = useState("");
@@ -20,7 +23,11 @@ const Converter = () => {
   const [uploadsUsed, setUploadsUsed] = useState(0);
   const [fileName, setFileName] = useState("audio-output");
   
-  const isPremium = false; // This would come from auth/subscription state
+  const { user, subscription } = useAuth();
+  const { uploadAudio } = useAudioStorage();
+  const navigate = useNavigate();
+  
+  const isPremium = subscription.subscribed;
   const uploadsRemaining = 3 - uploadsUsed;
 
   const handlePDFUpload = (file: File, text: string) => {
@@ -30,6 +37,12 @@ const Converter = () => {
   };
 
   const handleConvert = async () => {
+    if (!user) {
+      toast.error("Please sign in to convert audio");
+      navigate("/auth");
+      return;
+    }
+
     if (!inputText.trim()) {
       toast.error("Please enter some text to convert");
       return;
@@ -42,13 +55,43 @@ const Converter = () => {
 
     setIsGenerating(true);
     
-    // Simulate audio generation (in real implementation, this would call a TTS API)
-    setTimeout(() => {
-      // Create a sample audio URL (in production, this would be the generated audio)
-      setAudioUrl("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+    try {
+      // For demo purposes, fetch a sample audio file and upload it
+      // In production, this would call a TTS API to generate the audio
+      const response = await fetch("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+      const audioBlob = await response.blob();
+      
+      // Upload to storage bucket
+      const publicUrl = await uploadAudio(audioBlob, fileName);
+      
+      // Save conversion record to database
+      const { error: dbError } = await supabase
+        .from("audio_conversions")
+        .insert({
+          user_id: user.id,
+          name: fileName,
+          original_filename: fileName + ".pdf",
+          voice_id: selectedVoice.id,
+          voice_name: selectedVoice.name,
+          character_count: inputText.length,
+          status: "completed",
+          audio_url: publicUrl,
+          duration_seconds: 180, // Placeholder - would be calculated from actual audio
+          file_size_bytes: audioBlob.size,
+        });
+
+      if (dbError) {
+        throw dbError;
+      }
+      
+      setAudioUrl(publicUrl);
+      toast.success("Audio generated and saved successfully!");
+    } catch (error) {
+      console.error("Error generating audio:", error);
+      toast.error("Failed to generate audio. Please try again.");
+    } finally {
       setIsGenerating(false);
-      toast.success("Audio generated successfully!");
-    }, 3000);
+    }
   };
 
   return (
