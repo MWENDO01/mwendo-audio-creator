@@ -57,6 +57,25 @@ export const useConversions = () => {
 
   const deleteConversion = async (id: string) => {
     try {
+      // Find the conversion to get the audio URL
+      const conversion = conversions.find((c) => c.id === id);
+      
+      // Delete from storage if audio_url exists
+      if (conversion?.audio_url) {
+        try {
+          const url = new URL(conversion.audio_url);
+          const pathParts = url.pathname.split("/audio-files/");
+          if (pathParts.length >= 2) {
+            const filePath = decodeURIComponent(pathParts[1]);
+            await supabase.storage.from("audio-files").remove([filePath]);
+          }
+        } catch (storageError) {
+          console.error("Error deleting from storage:", storageError);
+          // Continue with database deletion even if storage deletion fails
+        }
+      }
+
+      // Delete from database
       const { error } = await supabase
         .from("audio_conversions")
         .delete()
