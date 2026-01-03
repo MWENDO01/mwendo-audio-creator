@@ -27,6 +27,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversions } from "@/hooks/useConversions";
 import { format } from "date-fns";
@@ -60,6 +70,8 @@ const Dashboard = () => {
   const { conversions, loading: conversionsLoading, totalDuration, totalFiles, deleteConversion, formatDuration, formatFileSize, fetchConversions } = useConversions();
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [conversionToDelete, setConversionToDelete] = useState<string | null>(null);
   
   const currentPlan = planDetails[subscription.plan];
   const uploadLimit = currentPlan.uploadLimit;
@@ -76,6 +88,19 @@ const Dashboard = () => {
     setIsRefreshing(true);
     await refreshSubscription();
     setIsRefreshing(false);
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setConversionToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (conversionToDelete) {
+      await deleteConversion(conversionToDelete);
+      setConversionToDelete(null);
+    }
+    setDeleteDialogOpen(false);
   };
 
   if (loading) {
@@ -205,7 +230,7 @@ const Dashboard = () => {
                               )}
                               <DropdownMenuItem 
                                 className="text-destructive"
-                                onClick={() => deleteConversion(file.id)}
+                                onClick={() => handleDeleteClick(file.id)}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Delete
@@ -385,6 +410,23 @@ const Dashboard = () => {
       </main>
 
       <Footer />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Audio Conversion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this audio file? This action cannot be undone and will permanently remove the file from storage.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
