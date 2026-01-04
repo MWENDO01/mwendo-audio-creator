@@ -3,6 +3,14 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Volume2, VolumeX, X } from "lucide-react";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const SPEED_OPTIONS = [0.5, 1, 1.5, 2];
 
 const GlobalAudioPlayer = () => {
   const {
@@ -11,9 +19,11 @@ const GlobalAudioPlayer = () => {
     currentTime,
     duration,
     isMuted,
+    playbackSpeed,
     togglePlayPause,
     seek,
     toggleMute,
+    setPlaybackSpeed,
     closePlayer,
   } = useAudioPlayer();
 
@@ -79,8 +89,31 @@ const GlobalAudioPlayer = () => {
                 </span>
               </div>
 
-              {/* Volume & Close */}
+              {/* Speed, Volume & Close */}
               <div className="flex items-center gap-1 shrink-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs font-medium"
+                    >
+                      {playbackSpeed}x
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[80px]">
+                    {SPEED_OPTIONS.map((speed) => (
+                      <DropdownMenuItem
+                        key={speed}
+                        onClick={() => setPlaybackSpeed(speed)}
+                        className={playbackSpeed === speed ? "bg-accent" : ""}
+                      >
+                        {speed}x
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Button
                   variant="ghost"
                   size="icon"
