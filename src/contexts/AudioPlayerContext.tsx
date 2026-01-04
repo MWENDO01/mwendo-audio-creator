@@ -12,10 +12,12 @@ interface AudioPlayerContextType {
   currentTime: number;
   duration: number;
   isMuted: boolean;
+  playbackSpeed: number;
   playTrack: (track: Track) => void;
   togglePlayPause: () => void;
   seek: (time: number) => void;
   toggleMute: () => void;
+  setPlaybackSpeed: (speed: number) => void;
   closePlayer: () => void;
   audioRef: React.RefObject<HTMLAudioElement>;
 }
@@ -37,6 +39,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [playbackSpeed, setPlaybackSpeedState] = useState(1);
 
   const playTrack = useCallback((track: Track) => {
     setCurrentTrack(track);
@@ -71,6 +74,14 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     setIsMuted(!isMuted);
   }, [isMuted]);
 
+  const setPlaybackSpeed = useCallback((speed: number) => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.playbackRate = speed;
+    }
+    setPlaybackSpeedState(speed);
+  }, []);
+
   const closePlayer = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
@@ -80,6 +91,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setPlaybackSpeedState(1);
   }, []);
 
   const handleTimeUpdate = useCallback(() => {
@@ -112,10 +124,12 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         currentTime,
         duration,
         isMuted,
+        playbackSpeed,
         playTrack,
         togglePlayPause,
         seek,
         toggleMute,
+        setPlaybackSpeed,
         closePlayer,
         audioRef,
       }}
