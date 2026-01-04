@@ -7,7 +7,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   FileText,
   Play,
-  Pause,
   Download,
   Trash2,
   Clock,
@@ -19,6 +18,7 @@ import {
   Calendar,
   Sparkles,
   Zap,
+  Volume2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -41,7 +41,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversions } from "@/hooks/useConversions";
 import { format } from "date-fns";
-import InlineAudioPlayer from "@/components/dashboard/InlineAudioPlayer";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 
 const planDetails = {
   free: {
@@ -74,7 +74,7 @@ const Dashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conversionToDelete, setConversionToDelete] = useState<string | null>(null);
-  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const { playTrack, currentTrack } = useAudioPlayer();
   
   const currentPlan = planDetails[subscription.plan];
   const uploadLimit = currentPlan.uploadLimit;
@@ -210,10 +210,11 @@ const Dashboard = () => {
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
-                                  onClick={() => setPlayingAudioId(playingAudioId === file.id ? null : file.id)}
+                                  onClick={() => playTrack({ id: file.id, name: file.name, audioUrl: file.audio_url! })}
+                                  className={currentTrack?.id === file.id ? "text-primary" : ""}
                                 >
-                                  {playingAudioId === file.id ? (
-                                    <Pause className="w-4 h-4" />
+                                  {currentTrack?.id === file.id ? (
+                                    <Volume2 className="w-4 h-4" />
                                   ) : (
                                     <Play className="w-4 h-4" />
                                   )}
@@ -251,13 +252,6 @@ const Dashboard = () => {
                             </DropdownMenu>
                           </div>
                         </div>
-
-                        {playingAudioId === file.id && file.audio_url && (
-                          <InlineAudioPlayer
-                            audioUrl={file.audio_url}
-                            onClose={() => setPlayingAudioId(null)}
-                          />
-                        )}
                       </motion.div>
                     ))}
                   </div>
