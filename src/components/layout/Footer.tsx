@@ -26,6 +26,7 @@ const Footer = () => {
               <li><Link to="/converter" className="hover:text-primary transition-colors">PDF to Audio</Link></li>
               <li><Link to="/converter" className="hover:text-primary transition-colors">Text to Speech</Link></li>
               <li><Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
+              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQ</Link></li>
             </ul>
           </div>
 

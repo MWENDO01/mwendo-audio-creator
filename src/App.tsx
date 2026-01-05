@@ -16,6 +16,7 @@ import Careers from "./pages/Careers";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Cookies from "./pages/Cookies";
+import FAQ from "./pages/FAQ";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/cookies" element={<Cookies />} />
+              <Route path="/faq" element={<FAQ />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="*" element={<NotFound />} />
