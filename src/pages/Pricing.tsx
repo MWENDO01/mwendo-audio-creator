@@ -3,7 +3,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Check, Sparkles, Phone, Mail, Copy, Loader2 } from "lucide-react";
+import { Check, Sparkles, Mail, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -214,71 +214,42 @@ const Pricing = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mt-16 max-w-2xl mx-auto"
+            className="mt-16 max-w-xl mx-auto"
           >
             <h2 className="text-2xl font-bold text-center mb-8">
-              Alternative Payment <span className="gradient-text">Methods</span>
+              Alternative Payment <span className="gradient-text">Method</span>
             </h2>
             <p className="text-center text-sm text-muted-foreground mb-6">
-              Prefer to pay via M-Pesa or PayPal? Use the options below.
+              Prefer to pay via PayPal? Use the option below.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* M-Pesa */}
-              <div className="glass rounded-xl p-6 text-center">
-                <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Phone className="w-7 h-7 text-green-500" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">M-Pesa</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Send payment to our M-Pesa number
-                </p>
-                <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg p-3">
-                  <span className="font-mono font-bold text-lg">+254743664594</span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText("+254743664594");
-                      toast.success("M-Pesa number copied!");
-                    }}
-                    className="p-1.5 hover:bg-secondary rounded-md transition-colors"
-                  >
-                    <Copy className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Name: David Mwendo
-                </p>
+            <div className="glass rounded-xl p-6 text-center max-w-md mx-auto">
+              <div className="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-7 h-7 text-blue-500" />
               </div>
-
-              {/* PayPal */}
-              <div className="glass rounded-xl p-6 text-center">
-                <div className="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Mail className="w-7 h-7 text-blue-500" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">PayPal</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Send payment to our PayPal account
-                </p>
-                <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg p-3">
-                  <span className="font-mono text-sm md:text-base">davidmwendo64@gmail.com</span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText("davidmwendo64@gmail.com");
-                      toast.success("PayPal email copied!");
-                    }}
-                    className="p-1.5 hover:bg-secondary rounded-md transition-colors"
-                  >
-                    <Copy className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                </div>
-                <a
-                  href="https://paypal.me/davidmwendo64"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-3 text-sm text-primary hover:underline"
+              <h3 className="font-bold text-lg mb-2">PayPal</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Send payment to our PayPal account
+              </p>
+              <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg p-3">
+                <span className="font-mono text-sm md:text-base">davidmwendo64@gmail.com</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText("davidmwendo64@gmail.com");
+                    toast.success("PayPal email copied!");
+                  }}
+                  className="p-1.5 hover:bg-secondary rounded-md transition-colors"
                 >
-                  Pay via PayPal.me →
-                </a>
+                  <Copy className="w-4 h-4 text-muted-foreground" />
+                </button>
               </div>
+              <a
+                href="https://paypal.me/davidmwendo64"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 text-sm text-primary hover:underline"
+              >
+                Pay via PayPal.me →
+              </a>
             </div>
             <p className="text-center text-sm text-muted-foreground mt-6">
               After payment, send your receipt to <strong>davidmwendo64@gmail.com</strong> to activate your subscription.
