@@ -62,7 +62,7 @@ const Footer = () => {
             <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
               <Github className="w-5 h-5" />
             </a>
-            <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+            <a href="mailto:sparktechlimited08@gmail.com" className="text-muted-foreground hover:text-primary transition-colors">
               <Mail className="w-5 h-5" />
             </a>
           </div>
