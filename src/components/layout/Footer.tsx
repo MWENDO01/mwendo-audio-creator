@@ -56,7 +56,7 @@ const Footer = () => {
             © 2024 MWENDO Technologies. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
-            <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+            <a href="https://x.com/MwendoDavid" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
               <Twitter className="w-5 h-5" />
             </a>
             <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
