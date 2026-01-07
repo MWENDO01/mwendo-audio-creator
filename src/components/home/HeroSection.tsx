@@ -5,12 +5,15 @@ import { Link } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 
+const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 2];
+
 const HeroSection = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const sampleText = "Welcome to MWENDO AI, where we transform your written content into professional, natural-sounding audio. Experience the power of AI-driven voice technology.";
@@ -50,6 +53,7 @@ const HeroSection = () => {
       
       // Create and play audio
       const audio = new Audio(url);
+      audio.playbackRate = playbackSpeed;
       audioRef.current = audio;
       
       audio.addEventListener("loadedmetadata", () => {
@@ -95,6 +99,16 @@ const HeroSection = () => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  const cyclePlaybackSpeed = () => {
+    const currentIndex = SPEED_OPTIONS.indexOf(playbackSpeed);
+    const nextIndex = (currentIndex + 1) % SPEED_OPTIONS.length;
+    const newSpeed = SPEED_OPTIONS[nextIndex];
+    setPlaybackSpeed(newSpeed);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = newSpeed;
+    }
   };
 
   useEffect(() => {
@@ -222,9 +236,17 @@ const HeroSection = () => {
                 </div>
               </div>
               {audioUrl && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Volume2 className="w-4 h-4" />
-                  <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <button
+                    onClick={cyclePlaybackSpeed}
+                    className="px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors text-xs font-medium min-w-[3rem]"
+                  >
+                    {playbackSpeed}x
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="w-4 h-4" />
+                    <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+                  </div>
                 </div>
               )}
             </div>
