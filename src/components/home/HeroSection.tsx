@@ -1,9 +1,113 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Sparkles } from "lucide-react";
+import { ArrowRight, Play, Pause, Sparkles, Volume2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { Slider } from "@/components/ui/slider";
 
 const HeroSection = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const sampleText = "Welcome to MWENDO AI, where we transform your written content into professional, natural-sounding audio. Experience the power of AI-driven voice technology.";
+
+  const generateSampleAudio = async () => {
+    if (audioUrl) {
+      // Already have audio, just play it
+      togglePlayPause();
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            text: sampleText,
+            voiceId: "JBFqnCBsd6RMkjVDRZzb", // George voice
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to generate audio");
+      }
+
+      const audioBlob = await response.blob();
+      const url = URL.createObjectURL(audioBlob);
+      setAudioUrl(url);
+      
+      // Create and play audio
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      
+      audio.addEventListener("loadedmetadata", () => {
+        setDuration(audio.duration);
+      });
+      
+      audio.addEventListener("timeupdate", () => {
+        setCurrentTime(audio.currentTime);
+      });
+      
+      audio.addEventListener("ended", () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      });
+
+      await audio.play();
+      setIsPlaying(true);
+    } catch (error) {
+      console.error("Error generating sample audio:", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (!audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleSeek = (value: number[]) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = value[0];
+    setCurrentTime(value[0]);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Background Effects */}
@@ -88,7 +192,7 @@ const HeroSection = () => {
           </motion.div>
         </div>
 
-        {/* Floating Audio Visualizer */}
+        {/* Floating Audio Player */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -98,32 +202,63 @@ const HeroSection = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
           <div className="glass rounded-2xl p-6 max-w-3xl mx-auto card-shadow">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Play className="w-5 h-5 text-primary-foreground" />
-              </div>
+              <button
+                onClick={generateSampleAudio}
+                disabled={isGenerating}
+                className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isGenerating ? (
+                  <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                ) : isPlaying ? (
+                  <Pause className="w-5 h-5 text-primary-foreground" />
+                ) : (
+                  <Play className="w-5 h-5 text-primary-foreground ml-0.5" />
+                )}
+              </button>
               <div className="flex-1">
                 <div className="font-semibold">Sample Audiobook Preview</div>
                 <div className="text-sm text-muted-foreground">Generated with MWENDO AI</div>
               </div>
+              {audioUrl && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Volume2 className="w-4 h-4" />
+                  <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-1 h-16">
-              {[...Array(50)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="flex-1 bg-gradient-to-t from-primary to-accent rounded-full"
-                  style={{ height: `${Math.random() * 100}%` }}
-                  animate={{
-                    height: [`${Math.random() * 40 + 20}%`, `${Math.random() * 40 + 40}%`, `${Math.random() * 40 + 20}%`],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    delay: i * 0.05,
-                    ease: "easeInOut",
-                  }}
+            
+            {/* Progress bar / Visualizer */}
+            {audioUrl ? (
+              <div className="space-y-2">
+                <Slider
+                  value={[currentTime]}
+                  max={duration || 100}
+                  step={0.1}
+                  onValueChange={handleSeek}
+                  className="cursor-pointer"
                 />
-              ))}
-            </div>
+                <p className="text-xs text-muted-foreground text-center italic">"{sampleText}"</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 h-16">
+                {[...Array(50)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="flex-1 bg-gradient-to-t from-primary to-accent rounded-full"
+                    style={{ height: `${Math.random() * 100}%` }}
+                    animate={{
+                      height: [`${Math.random() * 40 + 20}%`, `${Math.random() * 40 + 40}%`, `${Math.random() * 40 + 20}%`],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      delay: i * 0.05,
+                      ease: "easeInOut",
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
