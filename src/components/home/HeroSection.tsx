@@ -217,7 +217,9 @@ const HeroSection = () => {
               </button>
               <div className="flex-1">
                 <div className="font-semibold">Sample Audiobook Preview</div>
-                <div className="text-sm text-muted-foreground">Generated with MWENDO AI</div>
+                <div className="text-sm text-muted-foreground">
+                  {isGenerating ? "Generating audio..." : "Generated with MWENDO AI"}
+                </div>
               </div>
               {audioUrl && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -239,18 +241,48 @@ const HeroSection = () => {
                 />
                 <p className="text-xs text-muted-foreground text-center italic">"{sampleText}"</p>
               </div>
+            ) : isGenerating ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-1 h-16">
+                  {[...Array(40)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-1.5 bg-gradient-to-t from-primary to-accent rounded-full"
+                      initial={{ height: "20%" }}
+                      animate={{
+                        height: ["20%", "80%", "40%", "90%", "30%"],
+                        opacity: [0.5, 1, 0.7, 1, 0.5],
+                      }}
+                      transition={{
+                        duration: 0.8,
+                        repeat: Infinity,
+                        delay: i * 0.03,
+                        ease: "easeInOut",
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <motion.div
+                    className="w-2 h-2 rounded-full bg-primary"
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  />
+                  <span className="text-sm text-muted-foreground">Processing your audio with AI...</span>
+                </div>
+              </div>
             ) : (
               <div className="flex items-center gap-1 h-16">
                 {[...Array(50)].map((_, i) => (
                   <motion.div
                     key={i}
-                    className="flex-1 bg-gradient-to-t from-primary to-accent rounded-full"
+                    className="flex-1 bg-gradient-to-t from-primary/60 to-accent/60 rounded-full"
                     style={{ height: `${Math.random() * 100}%` }}
                     animate={{
                       height: [`${Math.random() * 40 + 20}%`, `${Math.random() * 40 + 40}%`, `${Math.random() * 40 + 20}%`],
                     }}
                     transition={{
-                      duration: 1.5,
+                      duration: 2,
                       repeat: Infinity,
                       delay: i * 0.05,
                       ease: "easeInOut",
