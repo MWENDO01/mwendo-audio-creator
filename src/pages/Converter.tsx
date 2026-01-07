@@ -60,9 +60,28 @@ const Converter = () => {
     setIsGenerating(true);
     
     try {
-      // For demo purposes, fetch a sample audio file and upload it
-      // In production, this would call a TTS API to generate the audio
-      const response = await fetch("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+      // Call ElevenLabs TTS edge function
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            text: inputText, 
+            voiceId: selectedVoice.id 
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `TTS request failed: ${response.status}`);
+      }
+
       const audioBlob = await response.blob();
       
       // Upload to storage bucket
@@ -80,7 +99,7 @@ const Converter = () => {
           character_count: inputText.length,
           status: "completed",
           audio_url: publicUrl,
-          duration_seconds: 180, // Placeholder - would be calculated from actual audio
+          duration_seconds: Math.ceil(inputText.length / 15), // Rough estimate
           file_size_bytes: audioBlob.size,
         });
 
@@ -92,7 +111,7 @@ const Converter = () => {
       toast.success("Audio generated and saved successfully!");
     } catch (error) {
       console.error("Error generating audio:", error);
-      toast.error("Failed to generate audio. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to generate audio. Please try again.");
     } finally {
       setIsGenerating(false);
     }

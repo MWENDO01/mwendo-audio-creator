@@ -21,14 +21,14 @@ export interface Voice {
 }
 
 const voices: Voice[] = [
-  { id: "aria", name: "Aria", gender: "female", accent: "American", style: "Narrator", isPremium: false },
-  { id: "roger", name: "Roger", gender: "male", accent: "British", style: "Professional", isPremium: false },
-  { id: "sarah", name: "Sarah", gender: "female", accent: "American", style: "Conversational", isPremium: false },
-  { id: "george", name: "George", gender: "male", accent: "British", style: "Documentary", isPremium: false },
-  { id: "laura", name: "Laura", gender: "female", accent: "Australian", style: "Friendly", isPremium: true },
-  { id: "charlie", name: "Charlie", gender: "male", accent: "American", style: "Energetic", isPremium: true },
-  { id: "alice", name: "Alice", gender: "female", accent: "British", style: "Calm", isPremium: true },
-  { id: "daniel", name: "Daniel", gender: "male", accent: "Irish", style: "Storyteller", isPremium: true },
+  { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", gender: "female", accent: "American", style: "Conversational", isPremium: false },
+  { id: "CwhRBWXzGAHq8TQ4Fs17", name: "Roger", gender: "male", accent: "British", style: "Professional", isPremium: false },
+  { id: "JBFqnCBsd6RMkjVDRZzb", name: "George", gender: "male", accent: "British", style: "Documentary", isPremium: false },
+  { id: "Xb7hH8MSUJpSbSDYk0k2", name: "Alice", gender: "female", accent: "British", style: "Narrator", isPremium: false },
+  { id: "FGY2WhTYpPnrIDTdsKH5", name: "Laura", gender: "female", accent: "American", style: "Friendly", isPremium: true },
+  { id: "IKne3meq5aSn9XLyUdCD", name: "Charlie", gender: "male", accent: "Australian", style: "Energetic", isPremium: true },
+  { id: "onwK4e9ZLuTAKqWW03F9", name: "Daniel", gender: "male", accent: "British", style: "Storyteller", isPremium: true },
+  { id: "pFZP5JQG7iQjIQuC4Bku", name: "Lily", gender: "female", accent: "British", style: "Calm", isPremium: true },
 ];
 
 interface VoiceSelectorProps {
