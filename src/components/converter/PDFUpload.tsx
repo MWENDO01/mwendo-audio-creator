@@ -43,10 +43,28 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
     }
   };
 
+  const loadPdfJs = (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      // Check if already loaded
+      if ((window as any).pdfjsLib) {
+        resolve((window as any).pdfjsLib);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        const pdfjsLib = (window as any).pdfjsLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve(pdfjsLib);
+      };
+      script.onerror = () => reject(new Error('Failed to load PDF.js'));
+      document.head.appendChild(script);
+    });
+  };
+
   const extractTextFromPDF = async (file: File): Promise<string> => {
-    // Dynamic import to avoid top-level await issues
-    const pdfjsLib = await import("pdfjs-dist");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    const pdfjsLib = await loadPdfJs();
     
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
