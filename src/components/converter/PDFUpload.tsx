@@ -3,6 +3,7 @@ import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { createWorker } from "tesseract.js";
 
 interface PDFUploadProps {
   onFileSelect: (file: File, text: string) => void;
@@ -15,6 +16,7 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState(0);
+  const [processingStatus, setProcessingStatus] = useState("Reading document...");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -80,10 +82,43 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
         .join(" ");
       fullText += pageText + "\n\n";
       
-      // Update progress
       setExtractionProgress(Math.round((pageNum / totalPages) * 100));
     }
     
+    return fullText.trim();
+  };
+
+  const performOCR = async (file: File): Promise<string> => {
+    const pdfjsLib = await loadPdfJs();
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    const totalPages = pdf.numPages;
+    let fullText = "";
+    
+    const worker = await createWorker("eng");
+    
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      setProcessingStatus(`OCR scanning page ${pageNum} of ${totalPages}...`);
+      
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 2.0 });
+      
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d")!;
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      
+      await page.render({ canvasContext: context, viewport }).promise;
+      
+      const imageData = canvas.toDataURL("image/png");
+      const { data } = await worker.recognize(imageData);
+      fullText += data.text + "\n\n";
+      
+      setExtractionProgress(Math.round((pageNum / totalPages) * 100));
+    }
+    
+    await worker.terminate();
     return fullText.trim();
   };
 
@@ -106,19 +141,28 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
     setSelectedFile(file);
     setIsProcessing(true);
     setExtractionProgress(0);
+    setProcessingStatus("Reading document...");
 
     try {
-      const extractedText = await extractTextFromPDF(file);
+      let extractedText = await extractTextFromPDF(file);
+      
+      // If text extraction yields little content, try OCR
+      if (extractedText.trim().length < 50) {
+        setProcessingStatus("Scanned PDF detected, running OCR...");
+        setExtractionProgress(0);
+        toast.info("Scanned PDF detected. Running OCR (this may take a moment)...");
+        extractedText = await performOCR(file);
+      }
       
       if (!extractedText.trim()) {
-        toast.error("Could not extract text from this PDF. It may be image-based or protected.");
+        toast.error("Could not extract text from this PDF.");
         setIsProcessing(false);
         setSelectedFile(null);
         return;
       }
       
       onFileSelect(file, extractedText);
-      toast.success(`PDF processed successfully! Extracted ${extractedText.length.toLocaleString()} characters.`);
+      toast.success(`PDF processed! Extracted ${extractedText.length.toLocaleString()} characters.`);
     } catch (error) {
       console.error("PDF extraction error:", error);
       toast.error("Failed to read PDF. Please try a different file.");
@@ -185,7 +229,7 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
               className="py-4"
             >
               <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-              <p className="text-muted-foreground mb-2">Reading document content...</p>
+              <p className="text-muted-foreground mb-2">{processingStatus}</p>
               {extractionProgress > 0 && (
                 <div className="w-48 mx-auto">
                   <div className="h-2 bg-secondary rounded-full overflow-hidden">
