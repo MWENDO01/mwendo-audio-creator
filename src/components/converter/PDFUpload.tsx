@@ -3,6 +3,10 @@ import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Set the worker source
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface PDFUploadProps {
   onFileSelect: (file: File, text: string) => void;
@@ -14,6 +18,7 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -42,6 +47,28 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
     }
   };
 
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    const totalPages = pdf.numPages;
+    let fullText = "";
+    
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      fullText += pageText + "\n\n";
+      
+      // Update progress
+      setExtractionProgress(Math.round((pageNum / totalPages) * 100));
+    }
+    
+    return fullText.trim();
+  };
+
   const processFile = async (file: File) => {
     if (!file.type.includes("pdf")) {
       toast.error("Please upload a PDF file");
@@ -60,14 +87,28 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
 
     setSelectedFile(file);
     setIsProcessing(true);
+    setExtractionProgress(0);
 
-    // Simulate PDF text extraction (in real implementation, this would use a PDF parser)
-    setTimeout(() => {
-      const sampleText = `This is extracted text from your PDF "${file.name}". In a full implementation, this would contain the actual content extracted from your uploaded document using a PDF parsing library.`;
-      onFileSelect(file, sampleText);
+    try {
+      const extractedText = await extractTextFromPDF(file);
+      
+      if (!extractedText.trim()) {
+        toast.error("Could not extract text from this PDF. It may be image-based or protected.");
+        setIsProcessing(false);
+        setSelectedFile(null);
+        return;
+      }
+      
+      onFileSelect(file, extractedText);
+      toast.success(`PDF processed successfully! Extracted ${extractedText.length.toLocaleString()} characters.`);
+    } catch (error) {
+      console.error("PDF extraction error:", error);
+      toast.error("Failed to read PDF. Please try a different file.");
+      setSelectedFile(null);
+    } finally {
       setIsProcessing(false);
-      toast.success("PDF uploaded successfully!");
-    }, 1500);
+      setExtractionProgress(0);
+    }
   };
 
   const clearFile = () => {
@@ -126,7 +167,20 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
               className="py-4"
             >
               <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-              <p className="text-muted-foreground">Processing PDF...</p>
+              <p className="text-muted-foreground mb-2">Reading document content...</p>
+              {extractionProgress > 0 && (
+                <div className="w-48 mx-auto">
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-primary"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${extractionProgress}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{extractionProgress}% extracted</p>
+                </div>
+              )}
             </motion.div>
           ) : selectedFile ? (
             <motion.div
