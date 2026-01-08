@@ -3,10 +3,6 @@ import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import * as pdfjsLib from "pdfjs-dist";
-
-// Set the worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface PDFUploadProps {
   onFileSelect: (file: File, text: string) => void;
@@ -48,6 +44,10 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
   };
 
   const extractTextFromPDF = async (file: File): Promise<string> => {
+    // Dynamic import to avoid top-level await issues
+    const pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
