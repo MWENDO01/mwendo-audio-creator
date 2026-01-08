@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Pause, Sparkles, Volume2, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRight, Play, Pause, Sparkles, Volume2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import demoVideo from "@/assets/demo-video.mp4";
 
 const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 2];
 
@@ -199,17 +200,15 @@ const HeroSection = () => {
               <DialogHeader className="p-4 pb-0">
                 <DialogTitle>See MWENDO AI in Action</DialogTitle>
               </DialogHeader>
-              <div className="aspect-video w-full">
-                <iframe
-                  width="100%"
-                  height="100%"
-                  src={isDemoOpen ? "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1" : ""}
-                  title="MWENDO AI Demo Video"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full"
-                />
+              <div className="aspect-video w-full p-4">
+                <video
+                  src={demoVideo}
+                  controls
+                  autoPlay
+                  className="w-full h-full rounded-lg"
+                >
+                  Your browser does not support the video tag.
+                </video>
               </div>
             </DialogContent>
           </Dialog>
