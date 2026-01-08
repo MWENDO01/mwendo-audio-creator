@@ -1,9 +1,15 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Pause, Sparkles, Volume2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowRight, Play, Pause, Sparkles, Volume2, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 2];
 
@@ -14,6 +20,7 @@ const HeroSection = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const sampleText = "Welcome to MWENDO AI, where we transform your written content into professional, natural-sounding audio. Experience the power of AI-driven voice technology.";
@@ -180,11 +187,32 @@ const HeroSection = () => {
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-            <Button variant="glass" size="xl" className="group">
+            <Button variant="glass" size="xl" className="group" onClick={() => setIsDemoOpen(true)}>
               <Play className="w-5 h-5" />
               Watch Demo
             </Button>
           </motion.div>
+
+          {/* Demo Video Modal */}
+          <Dialog open={isDemoOpen} onOpenChange={setIsDemoOpen}>
+            <DialogContent className="sm:max-w-4xl p-0 overflow-hidden">
+              <DialogHeader className="p-4 pb-0">
+                <DialogTitle>See MWENDO AI in Action</DialogTitle>
+              </DialogHeader>
+              <div className="aspect-video w-full">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src={isDemoOpen ? "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1" : ""}
+                  title="MWENDO AI Demo Video"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Stats */}
           <motion.div
