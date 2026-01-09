@@ -3,6 +3,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import PDFUpload from "@/components/converter/PDFUpload";
 import TextInput from "@/components/converter/TextInput";
+import TextPreview from "@/components/converter/TextPreview";
 import VoiceSelector, { Voice } from "@/components/converter/VoiceSelector";
 import AudioPlayer from "@/components/converter/AudioPlayer";
 import AudioUpload from "@/components/converter/AudioUpload";
@@ -10,7 +11,7 @@ import TranscriptionOutput from "@/components/converter/TranscriptionOutput";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Type, Wand2, Crown, Mic } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +25,7 @@ const Converter = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadsUsed, setUploadsUsed] = useState(0);
   const [fileName, setFileName] = useState("audio-output");
+  const [hasPdfExtracted, setHasPdfExtracted] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [activeMainTab, setActiveMainTab] = useState("text-to-speech");
   
@@ -38,12 +40,16 @@ const Converter = () => {
     const pdfName = file.name.replace(".pdf", "");
     setInputText(text);
     setFileName(pdfName);
+    setHasPdfExtracted(true);
     setUploadsUsed((prev) => prev + 1);
-    
-    // Auto-generate audio after PDF extraction
-    if (text.trim() && selectedVoice) {
-      await generateAudio(text, pdfName);
-    }
+    toast.success("PDF text extracted! Review and edit before converting.");
+  };
+
+  const handleClearPreview = () => {
+    setInputText("");
+    setFileName("audio-output");
+    setHasPdfExtracted(false);
+    setAudioUrl(null);
   };
 
   const generateAudio = async (text: string, name: string) => {
@@ -194,12 +200,32 @@ const Converter = () => {
                       </TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="pdf" className="mt-6">
-                      <PDFUpload
-                        onFileSelect={handlePDFUpload}
-                        uploadsRemaining={uploadsRemaining}
-                        isPremium={isPremium}
-                      />
+                    <TabsContent value="pdf" className="mt-6 space-y-4">
+                      <AnimatePresence mode="wait">
+                        {hasPdfExtracted ? (
+                          <TextPreview
+                            key="preview"
+                            text={inputText}
+                            fileName={fileName}
+                            onTextChange={setInputText}
+                            onFileNameChange={setFileName}
+                            onClear={handleClearPreview}
+                          />
+                        ) : (
+                          <motion.div
+                            key="upload"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                          >
+                            <PDFUpload
+                              onFileSelect={handlePDFUpload}
+                              uploadsRemaining={uploadsRemaining}
+                              isPremium={isPremium}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </TabsContent>
                     
                     <TabsContent value="text" className="mt-6">
