@@ -34,33 +34,33 @@ const Converter = () => {
   const isPremium = subscription.subscribed;
   const uploadsRemaining = 3 - uploadsUsed;
 
-  const handlePDFUpload = (file: File, text: string) => {
+  const handlePDFUpload = async (file: File, text: string) => {
+    const pdfName = file.name.replace(".pdf", "");
     setInputText(text);
-    setFileName(file.name.replace(".pdf", ""));
+    setFileName(pdfName);
     setUploadsUsed((prev) => prev + 1);
+    
+    // Auto-generate audio after PDF extraction
+    if (text.trim() && selectedVoice) {
+      await generateAudio(text, pdfName);
+    }
   };
 
-  const handleConvert = async () => {
+  const generateAudio = async (text: string, name: string) => {
     if (!user) {
       toast.error("Please sign in to convert audio");
       navigate("/auth");
       return;
     }
 
-    if (!inputText.trim()) {
-      toast.error("Please enter some text to convert");
-      return;
-    }
-
     if (!selectedVoice) {
-      toast.error("Please select a voice");
+      toast.error("Please select a voice first");
       return;
     }
 
     setIsGenerating(true);
     
     try {
-      // Call ElevenLabs TTS edge function
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
         {
@@ -71,7 +71,7 @@ const Converter = () => {
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({ 
-            text: inputText, 
+            text: text, 
             voiceId: selectedVoice.id 
           }),
         }
@@ -83,23 +83,20 @@ const Converter = () => {
       }
 
       const audioBlob = await response.blob();
+      const publicUrl = await uploadAudio(audioBlob, name);
       
-      // Upload to storage bucket
-      const publicUrl = await uploadAudio(audioBlob, fileName);
-      
-      // Save conversion record to database
       const { error: dbError } = await supabase
         .from("audio_conversions")
         .insert({
           user_id: user.id,
-          name: fileName,
-          original_filename: fileName + ".pdf",
+          name: name,
+          original_filename: name + ".pdf",
           voice_id: selectedVoice.id,
           voice_name: selectedVoice.name,
-          character_count: inputText.length,
+          character_count: text.length,
           status: "completed",
           audio_url: publicUrl,
-          duration_seconds: Math.ceil(inputText.length / 15), // Rough estimate
+          duration_seconds: Math.ceil(text.length / 15),
           file_size_bytes: audioBlob.size,
         });
 
@@ -114,6 +111,31 @@ const Converter = () => {
       toast.error(error instanceof Error ? error.message : "Failed to generate audio. Please try again.");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleConvert = async () => {
+    await generateAudio(inputText, fileName);
+  };
+
+  const handleRename = async (newName: string) => {
+    setFileName(newName);
+    
+    // Update in database if audio exists
+    if (audioUrl && user) {
+      try {
+        const { error } = await supabase
+          .from("audio_conversions")
+          .update({ name: newName })
+          .eq("audio_url", audioUrl)
+          .eq("user_id", user.id);
+          
+        if (error) throw error;
+        toast.success("Audio renamed successfully!");
+      } catch (error) {
+        console.error("Error renaming audio:", error);
+        toast.error("Failed to rename audio");
+      }
     }
   };
 
@@ -243,6 +265,7 @@ const Converter = () => {
                     audioUrl={audioUrl}
                     fileName={fileName}
                     isGenerating={isGenerating}
+                    onRename={handleRename}
                   />
                 </motion.div>
               </div>

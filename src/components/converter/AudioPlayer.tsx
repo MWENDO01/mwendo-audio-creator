@@ -1,22 +1,42 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Download, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Download, RotateCcw, Volume2, VolumeX, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 
 interface AudioPlayerProps {
   audioUrl: string | null;
   fileName: string;
   isGenerating: boolean;
+  onRename?: (newName: string) => void;
 }
 
-const AudioPlayer = ({ audioUrl, fileName, isGenerating }: AudioPlayerProps) => {
+const AudioPlayer = ({ audioUrl, fileName, isGenerating, onRename }: AudioPlayerProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(fileName);
+
+  useEffect(() => {
+    setEditName(fileName);
+  }, [fileName]);
+
+  const handleSaveRename = () => {
+    if (editName.trim() && onRename) {
+      onRename(editName.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelRename = () => {
+    setEditName(fileName);
+    setIsEditing(false);
+  };
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -146,10 +166,43 @@ const AudioPlayer = ({ audioUrl, fileName, isGenerating }: AudioPlayerProps) => 
     >
       <audio ref={audioRef} src={audioUrl} />
       
-      {/* File Name */}
+      {/* File Name with Rename */}
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="font-medium">{fileName}</p>
+        <div className="flex-1 mr-4">
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="h-8 text-sm"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveRename();
+                  if (e.key === "Escape") handleCancelRename();
+                }}
+              />
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSaveRename}>
+                <Check className="w-4 h-4 text-green-500" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCancelRename}>
+                <X className="w-4 h-4 text-red-500" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <p className="font-medium truncate">{fileName}</p>
+              {onRename && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6" 
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+          )}
           <p className="text-sm text-muted-foreground">MP3 Audio</p>
         </div>
         <Button variant="gradient" size="sm" onClick={downloadAudio}>
