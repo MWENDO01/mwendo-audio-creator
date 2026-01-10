@@ -11,9 +11,9 @@ interface CharacterLimitIndicatorProps {
 }
 
 const PLAN_LIMITS = {
-  free: 5000,
-  pro: 25000,
-  enterprise: 100000,
+  free: 50000,
+  pro: Infinity,
+  enterprise: Infinity,
 };
 
 const PLAN_LABELS = {
@@ -59,7 +59,7 @@ const CharacterLimitIndicator = ({
             "font-medium",
             isAtLimit ? "text-destructive" : isNearLimit ? "text-amber-500" : "text-muted-foreground"
           )}>
-            {currentCount.toLocaleString()} / {limit.toLocaleString()} characters
+            {currentCount.toLocaleString()} / {limit === Infinity ? "Unlimited" : limit.toLocaleString()} characters
           </span>
           
           {isNearLimit && !isAtLimit && (
