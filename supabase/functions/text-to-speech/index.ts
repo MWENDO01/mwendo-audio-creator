@@ -60,13 +60,48 @@ function preprocessTextForNaturalSpeech(text: string): string {
   return processed;
 }
 
+// Supported languages with their codes for ElevenLabs
+const SUPPORTED_LANGUAGES: Record<string, string> = {
+  "auto": "Auto-detect",
+  "en": "English",
+  "es": "Spanish",
+  "fr": "French",
+  "de": "German",
+  "it": "Italian",
+  "pt": "Portuguese",
+  "pl": "Polish",
+  "hi": "Hindi",
+  "ar": "Arabic",
+  "zh": "Chinese",
+  "ja": "Japanese",
+  "ko": "Korean",
+  "nl": "Dutch",
+  "ru": "Russian",
+  "tr": "Turkish",
+  "sv": "Swedish",
+  "id": "Indonesian",
+  "fil": "Filipino",
+  "ta": "Tamil",
+  "uk": "Ukrainian",
+  "el": "Greek",
+  "cs": "Czech",
+  "fi": "Finnish",
+  "hr": "Croatian",
+  "ms": "Malay",
+  "sk": "Slovak",
+  "da": "Danish",
+  "bg": "Bulgarian",
+  "ro": "Romanian",
+  "hu": "Hungarian",
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { text, voiceId } = await req.json();
+    const { text, voiceId, language } = await req.json();
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
 
     if (!ELEVENLABS_API_KEY) {
@@ -80,7 +115,10 @@ serve(async (req) => {
     // Pre-process text for natural speech
     const processedText = preprocessTextForNaturalSpeech(text);
     
-    console.log(`Generating TTS for voice ${voiceId}, original length: ${text.length}, processed length: ${processedText.length}`);
+    // Determine language code (null for auto-detect)
+    const languageCode = language && language !== "auto" ? language : null;
+    
+    console.log(`Generating TTS for voice ${voiceId}, language: ${language || "auto"}, original length: ${text.length}, processed length: ${processedText.length}`);
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -103,8 +141,8 @@ serve(async (req) => {
             // Speaker boost for clarity and presence
             use_speaker_boost: true,
           },
-          // Enable auto-detection of language for proper pronunciation
-          language_code: null,
+          // Use specified language or auto-detect
+          ...(languageCode && { language_code: languageCode }),
         }),
       }
     );
