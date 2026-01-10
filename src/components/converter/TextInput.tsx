@@ -1,7 +1,8 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { CharacterLimitIndicator, PLAN_LIMITS } from "./CharacterLimitIndicator";
 
 interface TextInputProps {
   value: string;
@@ -9,7 +10,9 @@ interface TextInputProps {
 }
 
 const TextInput = ({ value, onChange }: TextInputProps) => {
-  const characterLimit = 5000;
+  const { subscription } = useAuth();
+  const plan = subscription.plan;
+  const characterLimit = PLAN_LIMITS[plan];
 
   return (
     <div className="space-y-4">
@@ -18,14 +21,15 @@ const TextInput = ({ value, onChange }: TextInputProps) => {
           value={value}
           onChange={(e) => onChange(e.target.value.slice(0, characterLimit))}
           placeholder="Paste or type your text here to convert to audio..."
-          className="min-h-[200px] resize-none bg-secondary/50 border-border focus:border-primary/50 rounded-xl text-base"
+          className="min-h-[200px] resize-none bg-secondary/50 border-border focus:border-primary/50 rounded-xl text-base pb-4"
         />
-        
-        {/* Character Count */}
-        <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
-          {value.length.toLocaleString()} / {characterLimit.toLocaleString()}
-        </div>
       </div>
+
+      {/* Character Limit Indicator */}
+      <CharacterLimitIndicator 
+        currentCount={value.length} 
+        plan={plan} 
+      />
 
       {/* Quick Actions */}
       <div className="flex items-center gap-2">

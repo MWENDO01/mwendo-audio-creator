@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { CharacterLimitIndicator, PLAN_LIMITS } from "./CharacterLimitIndicator";
 
 interface TextPreviewProps {
   text: string;
@@ -24,6 +26,9 @@ const TextPreview = ({
   const [copied, setCopied] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(fileName);
+  const { subscription } = useAuth();
+  const plan = subscription.plan;
+  const characterLimit = PLAN_LIMITS[plan];
 
   const handleCopy = async () => {
     try {
@@ -43,8 +48,11 @@ const TextPreview = ({
     setIsEditingName(false);
   };
 
+  const handleTextChange = (newText: string) => {
+    onTextChange(newText.slice(0, characterLimit));
+  };
+
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-  const charCount = text.length;
   const estimatedDuration = Math.ceil(wordCount / 150); // ~150 words per minute
 
   return (
@@ -84,7 +92,7 @@ const TextPreview = ({
               <div className="min-w-0">
                 <p className="font-medium truncate">{fileName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {charCount.toLocaleString()} chars • {wordCount.toLocaleString()} words • ~{estimatedDuration} min
+                  {wordCount.toLocaleString()} words • ~{estimatedDuration} min
                 </p>
               </div>
               <Button 
@@ -116,11 +124,17 @@ const TextPreview = ({
       <div className="relative">
         <Textarea
           value={text}
-          onChange={(e) => onTextChange(e.target.value)}
+          onChange={(e) => handleTextChange(e.target.value)}
           className="min-h-[200px] max-h-[400px] resize-y bg-background/50 border-border/50"
           placeholder="Extracted text will appear here..."
         />
       </div>
+
+      {/* Character Limit Indicator */}
+      <CharacterLimitIndicator 
+        currentCount={text.length} 
+        plan={plan} 
+      />
 
       {/* Helper Text */}
       <p className="text-xs text-muted-foreground text-center">
