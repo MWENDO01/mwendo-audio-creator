@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 const Converter = () => {
   const [inputText, setInputText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState("auto");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadsUsed, setUploadsUsed] = useState(0);
@@ -78,7 +79,8 @@ const Converter = () => {
           },
           body: JSON.stringify({ 
             text: text, 
-            voiceId: selectedVoice.id 
+            voiceId: selectedVoice.id,
+            language: selectedLanguage,
           }),
         }
       );
@@ -272,6 +274,8 @@ const Converter = () => {
                     selectedVoice={selectedVoice}
                     onVoiceSelect={setSelectedVoice}
                     isPremium={isPremium}
+                    selectedLanguage={selectedLanguage}
+                    onLanguageSelect={setSelectedLanguage}
                   />
 
                   {/* Convert Button */}

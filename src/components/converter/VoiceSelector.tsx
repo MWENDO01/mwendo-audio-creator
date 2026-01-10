@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Check, ChevronDown, Mic, Upload, Lock, Play, Pause, Volume2 } from "lucide-react";
+import { Check, ChevronDown, Mic, Upload, Lock, Play, Pause, Volume2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,6 +9,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -21,6 +28,46 @@ export interface Voice {
   isPremium: boolean;
   previewText?: string;
 }
+
+export interface Language {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+const LANGUAGES: Language[] = [
+  { code: "auto", name: "Auto-detect", flag: "🌐" },
+  { code: "en", name: "English", flag: "🇬🇧" },
+  { code: "es", name: "Spanish", flag: "🇪🇸" },
+  { code: "fr", name: "French", flag: "🇫🇷" },
+  { code: "de", name: "German", flag: "🇩🇪" },
+  { code: "it", name: "Italian", flag: "🇮🇹" },
+  { code: "pt", name: "Portuguese", flag: "🇵🇹" },
+  { code: "pl", name: "Polish", flag: "🇵🇱" },
+  { code: "hi", name: "Hindi", flag: "🇮🇳" },
+  { code: "ar", name: "Arabic", flag: "🇸🇦" },
+  { code: "zh", name: "Chinese", flag: "🇨🇳" },
+  { code: "ja", name: "Japanese", flag: "🇯🇵" },
+  { code: "ko", name: "Korean", flag: "🇰🇷" },
+  { code: "nl", name: "Dutch", flag: "🇳🇱" },
+  { code: "ru", name: "Russian", flag: "🇷🇺" },
+  { code: "tr", name: "Turkish", flag: "🇹🇷" },
+  { code: "sv", name: "Swedish", flag: "🇸🇪" },
+  { code: "id", name: "Indonesian", flag: "🇮🇩" },
+  { code: "fil", name: "Filipino", flag: "🇵🇭" },
+  { code: "ta", name: "Tamil", flag: "🇮🇳" },
+  { code: "uk", name: "Ukrainian", flag: "🇺🇦" },
+  { code: "el", name: "Greek", flag: "🇬🇷" },
+  { code: "cs", name: "Czech", flag: "🇨🇿" },
+  { code: "fi", name: "Finnish", flag: "🇫🇮" },
+  { code: "hr", name: "Croatian", flag: "🇭🇷" },
+  { code: "ms", name: "Malay", flag: "🇲🇾" },
+  { code: "sk", name: "Slovak", flag: "🇸🇰" },
+  { code: "da", name: "Danish", flag: "🇩🇰" },
+  { code: "bg", name: "Bulgarian", flag: "🇧🇬" },
+  { code: "ro", name: "Romanian", flag: "🇷🇴" },
+  { code: "hu", name: "Hungarian", flag: "🇭🇺" },
+];
 
 const voices: Voice[] = [
   { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", gender: "female", accent: "American", style: "Conversational", isPremium: false, previewText: "Hello! I'm Sarah, your friendly conversational voice assistant." },
@@ -37,13 +84,17 @@ interface VoiceSelectorProps {
   selectedVoice: Voice | null;
   onVoiceSelect: (voice: Voice) => void;
   isPremium: boolean;
+  selectedLanguage?: string;
+  onLanguageSelect?: (language: string) => void;
 }
 
-const VoiceSelector = ({ selectedVoice, onVoiceSelect, isPremium }: VoiceSelectorProps) => {
+const VoiceSelector = ({ selectedVoice, onVoiceSelect, isPremium, selectedLanguage = "auto", onLanguageSelect }: VoiceSelectorProps) => {
   const [customVoice, setCustomVoice] = useState<File | null>(null);
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const currentLanguage = LANGUAGES.find(l => l.code === selectedLanguage) || LANGUAGES[0];
 
   const handleCustomVoiceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -175,6 +226,37 @@ const VoiceSelector = ({ selectedVoice, onVoiceSelect, isPremium }: VoiceSelecto
 
   return (
     <div className="space-y-4">
+      {/* Language Selector */}
+      <div className="space-y-2">
+        <h3 className="font-medium flex items-center gap-2">
+          <Globe className="w-4 h-4 text-primary" />
+          Language
+        </h3>
+        <Select value={selectedLanguage} onValueChange={(value) => onLanguageSelect?.(value)}>
+          <SelectTrigger className="w-full h-12 bg-secondary/50">
+            <SelectValue>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{currentLanguage.flag}</span>
+                <span>{currentLanguage.name}</span>
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="max-h-[300px] bg-popover">
+            {LANGUAGES.map((lang) => (
+              <SelectItem key={lang.code} value={lang.code}>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{lang.flag}</span>
+                  <span>{lang.name}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Auto-detect works best for most content. Select a specific language for better accuracy.
+        </p>
+      </div>
+
       <div className="flex items-center justify-between">
         <h3 className="font-medium flex items-center gap-2">
           <Mic className="w-4 h-4 text-primary" />
