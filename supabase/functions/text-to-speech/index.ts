@@ -5,6 +5,61 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Pre-process text for more natural speech with proper pauses and emphasis
+function preprocessTextForNaturalSpeech(text: string): string {
+  let processed = text;
+  
+  // Normalize whitespace
+  processed = processed.replace(/\s+/g, ' ').trim();
+  
+  // Add SSML-like pauses for better rhythm (ElevenLabs interprets these naturally)
+  // Add slight pause after commas
+  processed = processed.replace(/,\s*/g, ', ');
+  
+  // Add longer pause after periods, question marks, exclamation marks
+  processed = processed.replace(/\.\s+/g, '. ');
+  processed = processed.replace(/\?\s+/g, '? ');
+  processed = processed.replace(/!\s+/g, '! ');
+  
+  // Add pause after colons and semicolons
+  processed = processed.replace(/:\s*/g, ': ');
+  processed = processed.replace(/;\s*/g, '; ');
+  
+  // Handle ellipsis for dramatic pause
+  processed = processed.replace(/\.{3,}/g, '... ');
+  processed = processed.replace(/…/g, '... ');
+  
+  // Handle dashes for emphasis pauses
+  processed = processed.replace(/\s*[-–—]\s*/g, ' — ');
+  
+  // Handle parentheses - add subtle pauses
+  processed = processed.replace(/\(\s*/g, ' (');
+  processed = processed.replace(/\s*\)/g, ') ');
+  
+  // Handle quotes for dialogue emphasis
+  processed = processed.replace(/"\s*/g, '"');
+  processed = processed.replace(/\s*"/g, '"');
+  
+  // Add pause between paragraphs
+  processed = processed.replace(/\n\n+/g, '\n\n');
+  processed = processed.replace(/\n/g, '. ');
+  
+  // Handle common abbreviations to prevent awkward pronunciation
+  processed = processed.replace(/\betc\./gi, 'etcetera');
+  processed = processed.replace(/\be\.g\./gi, 'for example');
+  processed = processed.replace(/\bi\.e\./gi, 'that is');
+  processed = processed.replace(/\bvs\./gi, 'versus');
+  processed = processed.replace(/\bMr\./gi, 'Mister');
+  processed = processed.replace(/\bMrs\./gi, 'Misses');
+  processed = processed.replace(/\bDr\./gi, 'Doctor');
+  processed = processed.replace(/\bSt\./gi, 'Saint');
+  
+  // Handle numbers for better pronunciation
+  processed = processed.replace(/(\d+),(\d{3})/g, '$1$2'); // Remove thousand separators for cleaner reading
+  
+  return processed;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -22,7 +77,10 @@ serve(async (req) => {
       throw new Error("Missing required parameters: text and voiceId");
     }
 
-    console.log(`Generating TTS for voice ${voiceId}, text length: ${text.length}`);
+    // Pre-process text for natural speech
+    const processedText = preprocessTextForNaturalSpeech(text);
+    
+    console.log(`Generating TTS for voice ${voiceId}, original length: ${text.length}, processed length: ${processedText.length}`);
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -33,14 +91,20 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text,
+          text: processedText,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.5,
+            // Higher stability (0.7) for consistent, clear speech
+            stability: 0.7,
+            // High similarity boost (0.85) to maintain voice characteristics
+            similarity_boost: 0.85,
+            // Style exaggeration (0.6) for expressive reading with mood/emotion
+            style: 0.6,
+            // Speaker boost for clarity and presence
             use_speaker_boost: true,
           },
+          // Enable auto-detection of language for proper pronunciation
+          language_code: null,
         }),
       }
     );
