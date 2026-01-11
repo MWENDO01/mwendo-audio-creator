@@ -2,6 +2,8 @@ import { useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import PDFUpload from "@/components/converter/PDFUpload";
+import BatchPDFUpload from "@/components/converter/BatchPDFUpload";
+import BatchTextPreview from "@/components/converter/BatchTextPreview";
 import TextInput from "@/components/converter/TextInput";
 import TextPreview from "@/components/converter/TextPreview";
 import VoiceSelector, { Voice } from "@/components/converter/VoiceSelector";
@@ -10,13 +12,21 @@ import AudioUpload from "@/components/converter/AudioUpload";
 import TranscriptionOutput from "@/components/converter/TranscriptionOutput";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Type, Wand2, Crown, Mic } from "lucide-react";
+import { FileText, Type, Wand2, Crown, Mic, Files, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAudioStorage } from "@/hooks/useAudioStorage";
 import { supabase } from "@/integrations/supabase/client";
+import { Progress } from "@/components/ui/progress";
+
+interface BatchFile {
+  id: string;
+  fileName: string;
+  text: string;
+  characterCount: number;
+}
 
 const Converter = () => {
   const [inputText, setInputText] = useState("");
@@ -29,6 +39,10 @@ const Converter = () => {
   const [hasPdfExtracted, setHasPdfExtracted] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [activeMainTab, setActiveMainTab] = useState("text-to-speech");
+  const [pdfMode, setPdfMode] = useState<"single" | "batch">("single");
+  const [batchFiles, setBatchFiles] = useState<BatchFile[]>([]);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   
   const { user, subscription } = useAuth();
   const { uploadAudio } = useAudioStorage();
@@ -51,6 +65,100 @@ const Converter = () => {
     setFileName("audio-output");
     setHasPdfExtracted(false);
     setAudioUrl(null);
+    setBatchFiles([]);
+  };
+
+  const handleBatchFilesProcessed = (files: { file: File; text: string }[]) => {
+    const processedFiles: BatchFile[] = files.map((f) => ({
+      id: crypto.randomUUID(),
+      fileName: f.file.name.replace(".pdf", ""),
+      text: f.text,
+      characterCount: f.text.length,
+    }));
+    setBatchFiles(processedFiles);
+    setUploadsUsed((prev) => prev + files.length);
+  };
+
+  const handleBatchConvert = async () => {
+    if (!user) {
+      toast.error("Please sign in to convert audio");
+      navigate("/auth");
+      return;
+    }
+
+    if (!selectedVoice) {
+      toast.error("Please select a voice first");
+      return;
+    }
+
+    if (batchFiles.length === 0) {
+      toast.error("No files to convert");
+      return;
+    }
+
+    setIsBatchGenerating(true);
+    setBatchProgress({ current: 0, total: batchFiles.length });
+
+    let successCount = 0;
+
+    for (let i = 0; i < batchFiles.length; i++) {
+      const file = batchFiles[i];
+      setBatchProgress({ current: i + 1, total: batchFiles.length });
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({
+              text: file.text,
+              voiceId: selectedVoice.id,
+              language: selectedLanguage,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          console.error(`Failed to convert ${file.fileName}`);
+          continue;
+        }
+
+        const audioBlob = await response.blob();
+        const publicUrl = await uploadAudio(audioBlob, file.fileName);
+
+        await supabase.from("audio_conversions").insert({
+          user_id: user.id,
+          name: file.fileName,
+          original_filename: file.fileName + ".pdf",
+          voice_id: selectedVoice.id,
+          voice_name: selectedVoice.name,
+          character_count: file.text.length,
+          status: "completed",
+          audio_url: publicUrl,
+          duration_seconds: Math.ceil(file.text.length / 15),
+          file_size_bytes: audioBlob.size,
+        });
+
+        successCount++;
+      } catch (error) {
+        console.error(`Error converting ${file.fileName}:`, error);
+      }
+    }
+
+    setIsBatchGenerating(false);
+    setBatchProgress({ current: 0, total: 0 });
+
+    if (successCount > 0) {
+      toast.success(`Successfully converted ${successCount} of ${batchFiles.length} files!`);
+      setBatchFiles([]);
+    } else {
+      toast.error("Failed to convert any files");
+    }
   };
 
   const generateAudio = async (text: string, name: string) => {
@@ -191,10 +299,14 @@ const Converter = () => {
                   className="space-y-6"
                 >
                   <Tabs defaultValue="pdf" className="w-full">
-                    <TabsList className="w-full grid grid-cols-2 bg-secondary/50">
+                    <TabsList className="w-full grid grid-cols-3 bg-secondary/50">
                       <TabsTrigger value="pdf" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                         <FileText className="w-4 h-4 mr-2" />
-                        PDF Upload
+                        Single PDF
+                      </TabsTrigger>
+                      <TabsTrigger value="batch" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                        <Files className="w-4 h-4 mr-2" />
+                        Batch PDF
                       </TabsTrigger>
                       <TabsTrigger value="text" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                         <Type className="w-4 h-4 mr-2" />
@@ -222,6 +334,33 @@ const Converter = () => {
                           >
                             <PDFUpload
                               onFileSelect={handlePDFUpload}
+                              uploadsRemaining={uploadsRemaining}
+                              isPremium={isPremium}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+
+                    <TabsContent value="batch" className="mt-6 space-y-4">
+                      <AnimatePresence mode="wait">
+                        {batchFiles.length > 0 ? (
+                          <BatchTextPreview
+                            key="batch-preview"
+                            files={batchFiles}
+                            onFilesChange={setBatchFiles}
+                            onClear={handleClearPreview}
+                            isPremium={isPremium}
+                          />
+                        ) : (
+                          <motion.div
+                            key="batch-upload"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                          >
+                            <BatchPDFUpload
+                              onFilesProcessed={handleBatchFilesProcessed}
                               uploadsRemaining={uploadsRemaining}
                               isPremium={isPremium}
                             />
@@ -279,16 +418,48 @@ const Converter = () => {
                   />
 
                   {/* Convert Button */}
-                  <Button
-                    variant="gradient"
-                    size="xl"
-                    className="w-full"
-                    onClick={handleConvert}
-                    disabled={isGenerating || !inputText.trim() || !selectedVoice}
-                  >
-                    <Wand2 className="w-5 h-5 mr-2" />
-                    {isGenerating ? "Generating..." : "Convert to Audio"}
-                  </Button>
+                  {batchFiles.length > 0 ? (
+                    <div className="space-y-3">
+                      {isBatchGenerating && (
+                        <div className="space-y-2">
+                          <Progress value={(batchProgress.current / batchProgress.total) * 100} className="h-2" />
+                          <p className="text-xs text-muted-foreground text-center">
+                            Converting {batchProgress.current} of {batchProgress.total} files...
+                          </p>
+                        </div>
+                      )}
+                      <Button
+                        variant="gradient"
+                        size="xl"
+                        className="w-full"
+                        onClick={handleBatchConvert}
+                        disabled={isBatchGenerating || !selectedVoice}
+                      >
+                        {isBatchGenerating ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Converting Batch...
+                          </>
+                        ) : (
+                          <>
+                            <Files className="w-5 h-5 mr-2" />
+                            Convert {batchFiles.length} Files
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="gradient"
+                      size="xl"
+                      className="w-full"
+                      onClick={handleConvert}
+                      disabled={isGenerating || !inputText.trim() || !selectedVoice}
+                    >
+                      <Wand2 className="w-5 h-5 mr-2" />
+                      {isGenerating ? "Generating..." : "Convert to Audio"}
+                    </Button>
+                  )}
 
                   {/* Audio Player */}
                   <AudioPlayer
