@@ -11,8 +11,8 @@ interface CharacterLimitIndicatorProps {
 }
 
 const PLAN_LIMITS = {
-  free: 50000,
-  pro: Infinity,
+  free: 70000,
+  pro: 200000,
   enterprise: Infinity,
 };
 
