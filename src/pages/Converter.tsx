@@ -43,6 +43,7 @@ const Converter = () => {
   const [batchFiles, setBatchFiles] = useState<BatchFile[]>([]);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
+  const [multiVoiceEnabled, setMultiVoiceEnabled] = useState(true);
   
   const { user, subscription } = useAuth();
   const { uploadAudio } = useAudioStorage();
@@ -119,6 +120,7 @@ const Converter = () => {
               text: file.text,
               voiceId: selectedVoice.id,
               language: selectedLanguage,
+              enableMultiVoice: multiVoiceEnabled,
             }),
           }
         );
@@ -189,6 +191,7 @@ const Converter = () => {
             text: text, 
             voiceId: selectedVoice.id,
             language: selectedLanguage,
+            enableMultiVoice: multiVoiceEnabled,
           }),
         }
       );
@@ -415,6 +418,8 @@ const Converter = () => {
                     isPremium={isPremium}
                     selectedLanguage={selectedLanguage}
                     onLanguageSelect={setSelectedLanguage}
+                    multiVoiceEnabled={multiVoiceEnabled}
+                    onMultiVoiceToggle={setMultiVoiceEnabled}
                   />
 
                   {/* Convert Button */}
