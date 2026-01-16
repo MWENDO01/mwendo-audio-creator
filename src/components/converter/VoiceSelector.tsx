@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
-import { Check, ChevronDown, Mic, Upload, Lock, Play, Pause, Volume2, Globe } from "lucide-react";
+import { Check, ChevronDown, Mic, Upload, Lock, Play, Pause, Volume2, Globe, Users } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -86,9 +88,19 @@ interface VoiceSelectorProps {
   isPremium: boolean;
   selectedLanguage?: string;
   onLanguageSelect?: (language: string) => void;
+  multiVoiceEnabled?: boolean;
+  onMultiVoiceToggle?: (enabled: boolean) => void;
 }
 
-const VoiceSelector = ({ selectedVoice, onVoiceSelect, isPremium, selectedLanguage = "auto", onLanguageSelect }: VoiceSelectorProps) => {
+const VoiceSelector = ({ 
+  selectedVoice, 
+  onVoiceSelect, 
+  isPremium, 
+  selectedLanguage = "auto", 
+  onLanguageSelect,
+  multiVoiceEnabled = true,
+  onMultiVoiceToggle,
+}: VoiceSelectorProps) => {
   const [customVoice, setCustomVoice] = useState<File | null>(null);
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState<string | null>(null);
@@ -319,6 +331,37 @@ const VoiceSelector = ({ selectedVoice, onVoiceSelect, isPremium, selectedLangua
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Multi-Voice Mode Toggle */}
+      <div className="glass rounded-xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Users className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <div>
+              <Label htmlFor="multi-voice" className="font-medium cursor-pointer">
+                Multi-Voice Mode
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Auto-assign voices for conversations & detect emotions
+              </p>
+            </div>
+          </div>
+          <Switch
+            id="multi-voice"
+            checked={multiVoiceEnabled}
+            onCheckedChange={(checked) => onMultiVoiceToggle?.(checked)}
+          />
+        </div>
+        {multiVoiceEnabled && (
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <p className="text-xs text-muted-foreground">
+              <span className="text-primary font-medium">✨ Active:</span> Questions read with rising intonation, dialogues get unique voices, emotions detected automatically.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Custom Voice Upload */}
       <div className="glass rounded-xl p-4">
