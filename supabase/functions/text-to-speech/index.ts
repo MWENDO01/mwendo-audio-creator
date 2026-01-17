@@ -186,43 +186,90 @@ function detectEmotion(text: string): { stability: number; style: number; simila
   return { stability: 0.7, style: 0.6, similarity_boost: 0.85 };
 }
 
-// Detect speaker type from dialogue context
-function detectSpeakerType(speakerName: string, dialogueContext: string): string {
+// Character voice variation settings - same voice but with different characteristics
+interface CharacterVoiceVariation {
+  stability: number;      // 0-1: Lower = more expressive/varied, Higher = more consistent
+  similarity_boost: number; // 0-1: Lower = more variation from base, Higher = closer to original
+  style: number;          // 0-1: Style exaggeration
+  speed_modifier?: number; // Optional: speaking pace hint (not directly supported but affects generation)
+}
+
+// Define voice variations for different character types (using SAME base voice)
+const CHARACTER_VARIATIONS: Record<string, CharacterVoiceVariation> = {
+  // Deep/authoritative characters - more stable, lower style for gravitas
+  deep_male: { stability: 0.85, similarity_boost: 0.6, style: 0.3 },
+  
+  // Soft/gentle characters - higher stability, moderate style
+  soft_female: { stability: 0.8, similarity_boost: 0.75, style: 0.4 },
+  
+  // Child-like characters - lower stability for playful variation, higher style
+  child: { stability: 0.4, similarity_boost: 0.5, style: 0.9 },
+  
+  // Villain/intense characters - low stability for dramatic effect
+  villain: { stability: 0.3, similarity_boost: 0.65, style: 0.95 },
+  
+  // Elderly characters - high stability, lower similarity for aged effect
+  elderly: { stability: 0.9, similarity_boost: 0.55, style: 0.25 },
+  
+  // Excited/energetic characters - low stability, high style
+  energetic: { stability: 0.35, similarity_boost: 0.7, style: 0.85 },
+  
+  // Calm narrator - baseline stable voice
+  narrator: { stability: 0.75, similarity_boost: 0.85, style: 0.5 },
+  
+  // Default variation for unrecognized speakers
+  default_speaker_1: { stability: 0.6, similarity_boost: 0.7, style: 0.6 },
+  default_speaker_2: { stability: 0.5, similarity_boost: 0.65, style: 0.7 },
+  default_speaker_3: { stability: 0.7, similarity_boost: 0.6, style: 0.5 },
+  default_speaker_4: { stability: 0.45, similarity_boost: 0.75, style: 0.65 },
+  default_speaker_5: { stability: 0.55, similarity_boost: 0.55, style: 0.75 },
+};
+
+// Detect character type from speaker name and context for voice variation
+function detectCharacterType(speakerName: string, dialogueContext: string): string {
   const lowerName = speakerName.toLowerCase();
   const lowerContext = dialogueContext.toLowerCase();
   
   // Child detection
-  if (/\b(child|kid|boy|girl|son|daughter|little|young|baby|toddler|mommy|daddy)\b/i.test(lowerName) ||
-      /\b(child|kid|little|young)\b/i.test(lowerContext)) {
+  if (/\b(child|kid|boy|girl|son|daughter|little|young|baby|toddler|mommy|daddy|kiddo)\b/i.test(lowerName) ||
+      /\b(child|kid|little|young|squeaked|giggled|whined)\b/i.test(lowerContext)) {
     return "child";
   }
   
-  // Deep male voice detection
-  if (/\b(father|dad|grandfather|grandpa|sir|boss|commander|captain|chief|lord|king)\b/i.test(lowerName) ||
-      /\b(deep|gruff|stern|authoritative|booming)\b/i.test(lowerContext)) {
-    return "male_deep";
+  // Villain/antagonist detection
+  if (/\b(villain|dark|lord|evil|demon|devil|shadow|death|doom|monster|beast)\b/i.test(lowerName) ||
+      /\b(growled|snarled|hissed|menacing|threatening|sinister|evil)\b/i.test(lowerContext)) {
+    return "villain";
   }
   
-  // Soft female voice detection
-  if (/\b(mother|mom|grandmother|grandma|lady|aunt|nurse|teacher)\b/i.test(lowerName) ||
-      /\b(gentle|soft|kind|warm|caring)\b/i.test(lowerContext)) {
-    return "female_soft";
+  // Deep/authoritative male detection
+  if (/\b(father|dad|grandfather|grandpa|sir|boss|commander|captain|chief|lord|king|general|master)\b/i.test(lowerName) ||
+      /\b(deep|gruff|stern|authoritative|booming|commanded|ordered)\b/i.test(lowerContext)) {
+    return "deep_male";
   }
   
-  // Regular male detection
-  if (/\b(he|him|his|man|boy|mr|sir|brother|uncle|john|michael|david|james|robert|william|thomas)\b/i.test(lowerName)) {
-    return "male_normal";
+  // Elderly detection
+  if (/\b(grandfather|grandpa|grandmother|grandma|elder|old|ancient|wise)\b/i.test(lowerName) ||
+      /\b(creaked|wheezed|slowly|elderly|aged|withered)\b/i.test(lowerContext)) {
+    return "elderly";
   }
   
-  // Regular female detection
-  if (/\b(she|her|woman|girl|ms|mrs|miss|sister|aunt|mary|jennifer|lisa|sarah|jessica|emily)\b/i.test(lowerName)) {
-    return "female_normal";
+  // Soft/gentle female detection
+  if (/\b(mother|mom|grandmother|grandma|lady|aunt|nurse|teacher|sister)\b/i.test(lowerName) ||
+      /\b(gentle|soft|kind|warm|caring|whispered|soothed)\b/i.test(lowerContext)) {
+    return "soft_female";
   }
   
-  return "narrator";
+  // Excited/energetic detection
+  if (/\b(excited|shouted|exclaimed|yelled|screamed|laughed)\b/i.test(lowerContext) ||
+      dialogueContext.includes("!")) {
+    return "energetic";
+  }
+  
+  return ""; // Will use rotating default variations
 }
 
-// Parse text for conversations and assign different voices
+// Parse text for conversations and assign voice VARIATIONS (same voice, different settings)
 interface DialogueSegment {
   text: string;
   voiceId: string;
@@ -232,13 +279,12 @@ interface DialogueSegment {
 
 function parseConversation(text: string, defaultVoiceId: string): DialogueSegment[] {
   const segments: DialogueSegment[] = [];
-  const speakerVoices: Map<string, string> = new Map();
-  const availableVoices = ["male_normal", "female_normal", "male_deep", "female_soft", "child"];
-  let voiceIndex = 0;
+  const speakerVariations: Map<string, CharacterVoiceVariation> = new Map();
+  const defaultVariationKeys = ["default_speaker_1", "default_speaker_2", "default_speaker_3", "default_speaker_4", "default_speaker_5"];
+  let speakerIndex = 0;
   
   // Pattern to detect dialogue: "Speaker: dialogue" or "Speaker said" patterns
   const dialoguePattern = /(?:^|\n)([A-Z][a-zA-Z\s]*?):\s*["']?(.+?)["']?(?=\n[A-Z]|\n\n|$)/gs;
-  const quotePattern = /"([^"]+)"/g;
   
   // Check if text has clear dialogue markers
   const hasDialogueMarkers = dialoguePattern.test(text);
@@ -255,28 +301,54 @@ function parseConversation(text: string, defaultVoiceId: string): DialogueSegmen
       if (match.index > lastIndex) {
         const narration = text.slice(lastIndex, match.index).trim();
         if (narration) {
+          const emotionSettings = detectEmotion(narration);
+          // Narrator uses stable, consistent variation
+          const narratorVariation = CHARACTER_VARIATIONS.narrator;
           segments.push({
             text: narration,
             voiceId: defaultVoiceId,
-            voiceSettings: detectEmotion(narration),
+            voiceSettings: {
+              stability: (narratorVariation.stability + emotionSettings.stability) / 2,
+              style: (narratorVariation.style + emotionSettings.style) / 2,
+              similarity_boost: narratorVariation.similarity_boost,
+            },
           });
         }
       }
       
-      // Assign voice to speaker
-      let speakerVoice = speakerVoices.get(speaker.trim().toLowerCase());
-      if (!speakerVoice) {
-        const speakerType = detectSpeakerType(speaker, dialogue);
-        speakerVoice = VOICE_TYPES[speakerType as keyof typeof VOICE_TYPES] || 
-                       VOICE_TYPES[availableVoices[voiceIndex % availableVoices.length] as keyof typeof VOICE_TYPES];
-        speakerVoices.set(speaker.trim().toLowerCase(), speakerVoice);
-        voiceIndex++;
+      // Get or assign voice variation for this speaker (using SAME voice but different settings)
+      const speakerKey = speaker.trim().toLowerCase();
+      let variation = speakerVariations.get(speakerKey);
+      
+      if (!variation) {
+        // Detect character type first
+        const characterType = detectCharacterType(speaker, dialogue);
+        
+        if (characterType && CHARACTER_VARIATIONS[characterType]) {
+          variation = CHARACTER_VARIATIONS[characterType];
+        } else {
+          // Assign a unique default variation for this speaker
+          const variationKey = defaultVariationKeys[speakerIndex % defaultVariationKeys.length];
+          variation = CHARACTER_VARIATIONS[variationKey];
+          speakerIndex++;
+        }
+        
+        speakerVariations.set(speakerKey, variation);
+        console.log(`Assigned voice variation to "${speaker}": stability=${variation.stability}, style=${variation.style}`);
       }
+      
+      // Combine character variation with emotion detection
+      const emotionSettings = detectEmotion(dialogue);
       
       segments.push({
         text: dialogue.trim(),
-        voiceId: speakerVoice,
-        voiceSettings: detectEmotion(dialogue),
+        voiceId: defaultVoiceId, // ALWAYS use the same base voice
+        voiceSettings: {
+          // Blend character variation with emotion for natural delivery
+          stability: (variation.stability * 0.6) + (emotionSettings.stability * 0.4),
+          style: (variation.style * 0.5) + (emotionSettings.style * 0.5),
+          similarity_boost: variation.similarity_boost,
+        },
         speakerName: speaker.trim(),
       });
       
@@ -287,10 +359,16 @@ function parseConversation(text: string, defaultVoiceId: string): DialogueSegmen
     if (lastIndex < text.length) {
       const remaining = text.slice(lastIndex).trim();
       if (remaining) {
+        const narratorVariation = CHARACTER_VARIATIONS.narrator;
+        const emotionSettings = detectEmotion(remaining);
         segments.push({
           text: remaining,
           voiceId: defaultVoiceId,
-          voiceSettings: detectEmotion(remaining),
+          voiceSettings: {
+            stability: (narratorVariation.stability + emotionSettings.stability) / 2,
+            style: (narratorVariation.style + emotionSettings.style) / 2,
+            similarity_boost: narratorVariation.similarity_boost,
+          },
         });
       }
     }
