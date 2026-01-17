@@ -9,7 +9,7 @@ import TextPreview from "@/components/converter/TextPreview";
 import VoiceSelector, { Voice } from "@/components/converter/VoiceSelector";
 import AudioPlayer from "@/components/converter/AudioPlayer";
 import AudioUpload from "@/components/converter/AudioUpload";
-import TranscriptionOutput from "@/components/converter/TranscriptionOutput";
+import TranscriptionOutput, { TranscriptionData } from "@/components/converter/TranscriptionOutput";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Type, Wand2, Crown, Mic, Files, Loader2 } from "lucide-react";
@@ -37,7 +37,7 @@ const Converter = () => {
   const [uploadsUsed, setUploadsUsed] = useState(0);
   const [fileName, setFileName] = useState("audio-output");
   const [hasPdfExtracted, setHasPdfExtracted] = useState(false);
-  const [transcribedText, setTranscribedText] = useState("");
+  const [transcriptionData, setTranscriptionData] = useState<TranscriptionData | null>(null);
   const [activeMainTab, setActiveMainTab] = useState("text-to-speech");
   const [pdfMode, setPdfMode] = useState<"single" | "batch">("single");
   const [batchFiles, setBatchFiles] = useState<BatchFile[]>([]);
@@ -492,7 +492,7 @@ const Converter = () => {
                       <Mic className="w-5 h-5 text-primary" />
                       Upload Audio File
                     </h3>
-                    <AudioUpload onTranscriptionComplete={setTranscribedText} />
+                    <AudioUpload onTranscriptionComplete={setTranscriptionData} />
                   </div>
 
                   {/* Upgrade Banner (for free users) */}
@@ -529,8 +529,8 @@ const Converter = () => {
                   transition={{ delay: 0.2 }}
                 >
                   <TranscriptionOutput 
-                    text={transcribedText} 
-                    onTextChange={setTranscribedText} 
+                    transcription={transcriptionData} 
+                    onTextChange={(text) => setTranscriptionData(prev => prev ? { ...prev, text } : { text })} 
                   />
                 </motion.div>
               </div>

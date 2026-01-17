@@ -3,9 +3,10 @@ import { Upload, Mic, FileAudio, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { TranscriptionData } from "./TranscriptionOutput";
 
 interface AudioUploadProps {
-  onTranscriptionComplete: (text: string) => void;
+  onTranscriptionComplete: (data: TranscriptionData) => void;
 }
 
 const AudioUpload = ({ onTranscriptionComplete }: AudioUploadProps) => {
@@ -65,6 +66,14 @@ const AudioUpload = ({ onTranscriptionComplete }: AudioUploadProps) => {
       return;
     }
 
+    // Get current session for auth
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      toast.error("Please sign in to transcribe audio");
+      return;
+    }
+
     setIsTranscribing(true);
 
     try {
@@ -76,7 +85,7 @@ const AudioUpload = ({ onTranscriptionComplete }: AudioUploadProps) => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: formData,
         }
@@ -90,8 +99,21 @@ const AudioUpload = ({ onTranscriptionComplete }: AudioUploadProps) => {
       const data = await response.json();
       
       if (data.text) {
-        onTranscriptionComplete(data.text);
-        toast.success("Audio transcribed successfully!");
+        // Pass the full transcription data including words with speakers
+        onTranscriptionComplete({
+          text: data.text,
+          words: data.words || [],
+          audio_events: data.audio_events || [],
+        });
+        
+        // Show success message with speaker info if available
+        const speakers = new Set(data.words?.map((w: any) => w.speaker).filter(Boolean));
+        if (speakers.size > 1) {
+          toast.success(`Transcribed with ${speakers.size} speakers detected!`);
+        } else {
+          toast.success("Audio transcribed successfully!");
+        }
+        
         setAudioFile(null);
       } else {
         throw new Error("No transcription text received");
@@ -198,7 +220,7 @@ const AudioUpload = ({ onTranscriptionComplete }: AudioUploadProps) => {
 
       {/* Info */}
       <p className="text-xs text-muted-foreground text-center">
-        Powered by ElevenLabs • Supports speaker diarization and audio event detection
+        Powered by ElevenLabs Scribe v2 • Speaker diarization & audio event detection
       </p>
     </div>
   );
