@@ -59,14 +59,15 @@ serve(async (req) => {
 
     console.log("Received audio file:", audioFile.name, "Size:", audioFile.size, "User:", userId);
 
-    // Prepare form data for ElevenLabs API
+    // Prepare form data for ElevenLabs API - using scribe_v2 for full transcription
     const apiFormData = new FormData();
     apiFormData.append("file", audioFile);
-    apiFormData.append("model_id", "scribe_v1");
-    apiFormData.append("tag_audio_events", "true");
-    apiFormData.append("diarize", "true");
+    apiFormData.append("model_id", "scribe_v2"); // Latest model for best transcription
+    apiFormData.append("tag_audio_events", "true"); // Detect laughter, applause, music, etc.
+    apiFormData.append("diarize", "true"); // Identify and label different speakers
+    // Language auto-detection - omit language_code for automatic detection
 
-    console.log("Sending request to ElevenLabs Speech-to-Text API...");
+    console.log("Sending request to ElevenLabs Speech-to-Text API with scribe_v2...");
 
     const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
       method: "POST",
@@ -83,7 +84,18 @@ serve(async (req) => {
     }
 
     const transcription = await response.json();
-    console.log("Transcription successful, text length:", transcription.text?.length);
+    
+    // Log detailed transcription info
+    console.log("Transcription successful:");
+    console.log("- Text length:", transcription.text?.length);
+    console.log("- Words count:", transcription.words?.length);
+    console.log("- Audio events:", transcription.audio_events?.length || 0);
+    
+    // Check for speakers if diarization was enabled
+    const speakers = new Set(transcription.words?.map((w: any) => w.speaker).filter(Boolean));
+    if (speakers.size > 0) {
+      console.log("- Speakers detected:", speakers.size);
+    }
 
     return new Response(JSON.stringify(transcription), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
