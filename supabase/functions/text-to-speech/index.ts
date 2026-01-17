@@ -543,7 +543,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub;
     console.log(`Authenticated user: ${userId}`);
 
-    const { text, voiceId, language, enableMultiVoice = true } = await req.json();
+    const { text, voiceId, language, enableMultiVoice = true, voiceSettings } = await req.json();
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
 
     if (!ELEVENLABS_API_KEY) {
@@ -560,14 +560,33 @@ serve(async (req) => {
     // Determine language code (null for auto-detect)
     const languageCode = language && language !== "auto" ? language : null;
     
-    console.log(`Generating TTS - Voice: ${voiceId}, Language: ${language || "auto"}, MultiVoice: ${enableMultiVoice}, Length: ${processedText.length}`);
+    console.log(`Generating TTS - Voice: ${voiceId}, Language: ${language || "auto"}, MultiVoice: ${enableMultiVoice}, CustomSettings: ${!!voiceSettings}, Length: ${processedText.length}`);
 
-    // Parse conversation for multi-voice support
-    const segments = enableMultiVoice ? parseConversation(processedText, voiceId) : [{
-      text: processedText,
-      voiceId: voiceId,
-      voiceSettings: detectEmotion(processedText),
-    }];
+    // If custom voice settings are provided (for character preview), use them directly
+    // Otherwise, parse conversation for multi-voice support
+    let segments: DialogueSegment[];
+    
+    if (voiceSettings) {
+      // Direct voice settings provided (character preview mode)
+      segments = [{
+        text: processedText,
+        voiceId: voiceId,
+        voiceSettings: {
+          stability: voiceSettings.stability ?? 0.7,
+          style: voiceSettings.style ?? 0.6,
+          similarity_boost: voiceSettings.similarity_boost ?? 0.85,
+        },
+      }];
+      console.log(`Using custom voice settings: stability=${voiceSettings.stability}, style=${voiceSettings.style}`);
+    } else if (enableMultiVoice) {
+      segments = parseConversation(processedText, voiceId);
+    } else {
+      segments = [{
+        text: processedText,
+        voiceId: voiceId,
+        voiceSettings: detectEmotion(processedText),
+      }];
+    }
 
     console.log(`Parsed ${segments.length} segments for TTS generation`);
 

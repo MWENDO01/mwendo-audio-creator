@@ -3,6 +3,7 @@ import { Check, ChevronDown, Mic, Upload, Lock, Play, Pause, Volume2, Globe, Use
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import CharacterVoicePreview from "./CharacterVoicePreview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -355,10 +356,16 @@ const VoiceSelector = ({
           />
         </div>
         {multiVoiceEnabled && (
-          <div className="mt-3 pt-3 border-t border-border/50">
+          <div className="mt-3 pt-3 border-t border-border/50 space-y-4">
             <p className="text-xs text-muted-foreground">
-              <span className="text-primary font-medium">✨ Active:</span> Questions read with rising intonation, dialogues get unique voices, emotions detected automatically.
+              <span className="text-primary font-medium">✨ Active:</span> Questions read with rising intonation, dialogues get unique voice variations, emotions detected automatically.
             </p>
+            
+            {/* Character Voice Preview */}
+            <CharacterVoicePreview 
+              selectedVoiceId={selectedVoice?.id || ""} 
+              disabled={!selectedVoice}
+            />
           </div>
         )}
       </div>
