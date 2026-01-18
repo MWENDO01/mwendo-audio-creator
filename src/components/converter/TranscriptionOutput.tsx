@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { Copy, Download, Check, Users, MessageSquare, FileText } from "lucide-react";
+import { Copy, Download, Check, Users, MessageSquare, FileText, Pencil, X, Check as CheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface TranscriptionWord {
   text: string;
@@ -44,10 +50,65 @@ const SPEAKER_COLORS = [
 const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutputProps) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("conversation");
+  const [speakerNames, setSpeakerNames] = useState<Record<string, string>>({});
+  const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   const text = transcription?.text || "";
   const words = transcription?.words || [];
   const audioEvents = transcription?.audio_events || [];
+
+  // Get display name for a speaker
+  const getDisplayName = (speaker: string) => {
+    if (speakerNames[speaker]) return speakerNames[speaker];
+    return speaker.replace("speaker_", "Speaker ");
+  };
+
+  // Get initials for avatar
+  const getInitials = (speaker: string) => {
+    const displayName = getDisplayName(speaker);
+    if (speakerNames[speaker]) {
+      // If custom name, use first letter of first two words
+      const parts = displayName.split(" ");
+      if (parts.length > 1) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return displayName.charAt(0).toUpperCase();
+    }
+    return speaker.replace("speaker_", "S").charAt(0).toUpperCase();
+  };
+
+  // Handle speaker rename
+  const handleStartEdit = (speaker: string) => {
+    setEditingSpeaker(speaker);
+    setEditValue(speakerNames[speaker] || "");
+  };
+
+  const handleSaveEdit = () => {
+    if (editingSpeaker && editValue.trim()) {
+      setSpeakerNames(prev => ({
+        ...prev,
+        [editingSpeaker]: editValue.trim()
+      }));
+      toast.success(`Renamed to "${editValue.trim()}"`);
+    }
+    setEditingSpeaker(null);
+    setEditValue("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSpeaker(null);
+    setEditValue("");
+  };
+
+  const handleClearName = (speaker: string) => {
+    setSpeakerNames(prev => {
+      const newNames = { ...prev };
+      delete newNames[speaker];
+      return newNames;
+    });
+    toast.success("Speaker name reset");
+  };
 
   // Group words by speaker for conversation view
   const groupedBySpeaker = (() => {
@@ -116,10 +177,10 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
     try {
       let copyText = text;
       
-      // If we have speaker data, format it nicely for copying
+      // If we have speaker data, format it nicely for copying with custom names
       if (hasSpeakers && groupedBySpeaker.length > 0) {
         copyText = groupedBySpeaker
-          .map(g => `${g.speaker}: ${g.text}`)
+          .map(g => `${getDisplayName(g.speaker)}: ${g.text}`)
           .join("\n\n");
       }
       
@@ -135,10 +196,10 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
   const handleDownload = () => {
     let downloadText = text;
     
-    // If we have speaker data, format it nicely for download
+    // If we have speaker data, format it nicely for download with custom names
     if (hasSpeakers && groupedBySpeaker.length > 0) {
       downloadText = groupedBySpeaker
-        .map(g => `[${formatTime(g.start)}] ${g.speaker}: ${g.text}`)
+        .map(g => `[${formatTime(g.start)}] ${getDisplayName(g.speaker)}: ${g.text}`)
         .join("\n\n");
     }
     
@@ -173,10 +234,72 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
         <div className="flex items-center gap-3">
           <h3 className="font-semibold">Transcription Result</h3>
           {hasSpeakers && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-full">
-              <Users className="w-3 h-3" />
-              <span>{speakers.length} speakers</span>
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-full hover:bg-secondary transition-colors">
+                  <Users className="w-3 h-3" />
+                  <span>{speakers.length} speakers</span>
+                  <Pencil className="w-3 h-3 ml-1" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-3" align="start">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Rename Speakers</h4>
+                    <span className="text-xs text-muted-foreground">Click to edit</span>
+                  </div>
+                  <div className="space-y-2">
+                    {speakers.map((speaker) => (
+                      <div key={speaker} className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${speakerColorMap.get(speaker!) || SPEAKER_COLORS[0]} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+                          {getInitials(speaker!)}
+                        </div>
+                        {editingSpeaker === speaker ? (
+                          <div className="flex-1 flex items-center gap-1">
+                            <Input
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              placeholder="Enter name..."
+                              className="h-7 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSaveEdit();
+                                if (e.key === "Escape") handleCancelEdit();
+                              }}
+                            />
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveEdit}>
+                              <CheckIcon className="w-3 h-3 text-green-500" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleCancelEdit}>
+                              <X className="w-3 h-3 text-red-500" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-between">
+                            <button
+                              onClick={() => handleStartEdit(speaker!)}
+                              className="text-sm hover:text-primary transition-colors text-left"
+                            >
+                              {getDisplayName(speaker!)}
+                            </button>
+                            <div className="flex items-center gap-1">
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleStartEdit(speaker!)}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              {speakerNames[speaker!] && (
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleClearName(speaker!)}>
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
           {audioEvents.length > 0 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-full">
@@ -220,13 +343,13 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
                 <div key={index} className="flex gap-3">
                   <div className="flex-shrink-0">
                     <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${speakerColorMap.get(group.speaker) || SPEAKER_COLORS[0]} flex items-center justify-center text-white text-xs font-bold`}>
-                      {group.speaker.replace("speaker_", "S").charAt(0).toUpperCase()}
+                      {getInitials(group.speaker)}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-sm">
-                        {group.speaker.replace("speaker_", "Speaker ")}
+                        {getDisplayName(group.speaker)}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatTime(group.start)}
