@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Copy, Download, Check, Users, MessageSquare, FileText, Pencil, X, Check as CheckIcon } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Copy, Download, Check, Users, MessageSquare, FileText, Pencil, X, Check as CheckIcon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,8 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
   const [speakerNames, setSpeakerNames] = useState<Record<string, string>>({});
   const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const text = transcription?.text || "";
   const words = transcription?.words || [];
@@ -167,6 +169,55 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
     speakerColorMap.set(speaker!, SPEAKER_COLORS[index % SPEAKER_COLORS.length]);
   });
 
+  // Search results
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return { count: 0, positions: [] as number[] };
+    
+    const query = searchQuery.toLowerCase();
+    const positions: number[] = [];
+    let pos = 0;
+    const lowerText = text.toLowerCase();
+    
+    while ((pos = lowerText.indexOf(query, pos)) !== -1) {
+      positions.push(pos);
+      pos += 1;
+    }
+    
+    return { count: positions.length, positions };
+  }, [searchQuery, text]);
+
+  // Highlight text with search matches
+  const highlightText = (content: string) => {
+    if (!searchQuery.trim()) return content;
+    
+    const query = searchQuery.toLowerCase();
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    const lowerContent = content.toLowerCase();
+    let matchIndex = 0;
+    
+    while ((matchIndex = lowerContent.indexOf(query, lastIndex)) !== -1) {
+      // Add text before match
+      if (matchIndex > lastIndex) {
+        parts.push(content.slice(lastIndex, matchIndex));
+      }
+      // Add highlighted match
+      parts.push(
+        <mark key={matchIndex} className="bg-yellow-400/80 dark:bg-yellow-500/60 text-foreground rounded px-0.5">
+          {content.slice(matchIndex, matchIndex + searchQuery.length)}
+        </mark>
+      );
+      lastIndex = matchIndex + searchQuery.length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < content.length) {
+      parts.push(content.slice(lastIndex));
+    }
+    
+    return parts.length > 0 ? parts : content;
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -230,8 +281,8 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
           <h3 className="font-semibold">Transcription Result</h3>
           {hasSpeakers && (
             <Popover>
@@ -308,7 +359,16 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
             </div>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Search Toggle */}
+          <Button
+            variant={isSearchOpen ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
+          >
+            <Search className="w-4 h-4 mr-1" />
+            Search
+          </Button>
           <Button variant="outline" size="sm" onClick={handleCopy}>
             {copied ? (
               <Check className="w-4 h-4 mr-1" />
@@ -323,6 +383,35 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
           </Button>
         </div>
       </div>
+
+      {/* Search Bar */}
+      {isSearchOpen && (
+        <div className="flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search transcription..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-20"
+              autoFocus
+            />
+            {searchQuery && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {searchResults.count} {searchResults.count === 1 ? "match" : "matches"}
+                </span>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {hasSpeakers ? (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -356,7 +445,7 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
                       </span>
                     </div>
                     <p className="text-sm text-foreground/90 leading-relaxed">
-                      {group.text}
+                      {highlightText(group.text)}
                     </p>
                   </div>
                 </div>
