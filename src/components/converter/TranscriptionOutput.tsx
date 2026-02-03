@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Copy, Download, Check, Users, MessageSquare, FileText, Pencil, X, Check as CheckIcon, Search } from "lucide-react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { Copy, Download, Check, Users, MessageSquare, FileText, Pencil, X, Check as CheckIcon, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,10 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
   const [editValue, setEditValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const text = transcription?.text || "";
   const words = transcription?.words || [];
@@ -186,8 +190,115 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
     return { count: positions.length, positions };
   }, [searchQuery, text]);
 
-  // Highlight text with search matches
-  const highlightText = (content: string) => {
+  // Reset current match index when search changes
+  useEffect(() => {
+    setCurrentMatchIndex(0);
+  }, [searchQuery]);
+
+  // Navigate to next match
+  const goToNextMatch = useCallback(() => {
+    if (searchResults.count > 0) {
+      setCurrentMatchIndex((prev) => (prev + 1) % searchResults.count);
+    }
+  }, [searchResults.count]);
+
+  // Navigate to previous match
+  const goToPrevMatch = useCallback(() => {
+    if (searchResults.count > 0) {
+      setCurrentMatchIndex((prev) => (prev - 1 + searchResults.count) % searchResults.count);
+    }
+  }, [searchResults.count]);
+
+  // Keyboard shortcut for Ctrl+F to open search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+F or Cmd+F to open search
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      }
+      
+      // Escape to close search
+      if (e.key === "Escape" && isSearchOpen) {
+        setIsSearchOpen(false);
+        setSearchQuery("");
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isSearchOpen]);
+
+  // Handle search input keyboard navigation
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.shiftKey) {
+        goToPrevMatch();
+      } else {
+        goToNextMatch();
+      }
+    }
+    if (e.key === "Escape") {
+      setIsSearchOpen(false);
+      setSearchQuery("");
+    }
+  };
+
+  // Highlight text with search matches (with current match highlighting)
+  const highlightText = useCallback((content: string, startOffset: number = 0) => {
+    if (!searchQuery.trim()) return content;
+    
+    const query = searchQuery.toLowerCase();
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    const lowerContent = content.toLowerCase();
+    let localMatchIndex = 0;
+    let matchIndexInText = 0;
+    
+    // Calculate starting match index based on offset
+    const textBefore = text.slice(0, startOffset).toLowerCase();
+    let globalMatchStart = 0;
+    let tempPos = 0;
+    while ((tempPos = textBefore.indexOf(query, tempPos)) !== -1) {
+      globalMatchStart++;
+      tempPos += 1;
+    }
+    
+    while ((matchIndexInText = lowerContent.indexOf(query, lastIndex)) !== -1) {
+      // Add text before match
+      if (matchIndexInText > lastIndex) {
+        parts.push(content.slice(lastIndex, matchIndexInText));
+      }
+      
+      // Determine if this is the current match
+      const isCurrentMatch = (globalMatchStart + localMatchIndex) === currentMatchIndex;
+      
+      // Add highlighted match
+      parts.push(
+        <mark 
+          key={matchIndexInText} 
+          className={`${isCurrentMatch ? "bg-orange-400 dark:bg-orange-500" : "bg-yellow-400/80 dark:bg-yellow-500/60"} text-foreground rounded px-0.5`}
+          data-match-index={globalMatchStart + localMatchIndex}
+        >
+          {content.slice(matchIndexInText, matchIndexInText + searchQuery.length)}
+        </mark>
+      );
+      lastIndex = matchIndexInText + searchQuery.length;
+      localMatchIndex++;
+    }
+    
+    // Add remaining text
+    if (lastIndex < content.length) {
+      parts.push(content.slice(lastIndex));
+    }
+    
+    return parts.length > 0 ? parts : content;
+  }, [searchQuery, currentMatchIndex, text]);
+
+  // Simple highlight without tracking (for plain text view)
+  const highlightTextSimple = (content: string) => {
     if (!searchQuery.trim()) return content;
     
     const query = searchQuery.toLowerCase();
@@ -197,11 +308,9 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
     let matchIndex = 0;
     
     while ((matchIndex = lowerContent.indexOf(query, lastIndex)) !== -1) {
-      // Add text before match
       if (matchIndex > lastIndex) {
         parts.push(content.slice(lastIndex, matchIndex));
       }
-      // Add highlighted match
       parts.push(
         <mark key={matchIndex} className="bg-yellow-400/80 dark:bg-yellow-500/60 text-foreground rounded px-0.5">
           {content.slice(matchIndex, matchIndex + searchQuery.length)}
@@ -210,7 +319,6 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
       lastIndex = matchIndex + searchQuery.length;
     }
     
-    // Add remaining text
     if (lastIndex < content.length) {
       parts.push(content.slice(lastIndex));
     }
@@ -280,7 +388,7 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
   }
 
   return (
-    <div className="space-y-4">
+    <div ref={containerRef} className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 flex-wrap">
           <h3 className="font-semibold">Transcription Result</h3>
@@ -390,26 +498,60 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search transcription..."
+              ref={searchInputRef}
+              placeholder="Search transcription... (Enter: next, Shift+Enter: prev)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-20"
+              onKeyDown={handleSearchKeyDown}
+              className="pl-9 pr-32"
               autoFocus
             />
             {searchQuery && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {searchResults.count} {searchResults.count === 1 ? "match" : "matches"}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {searchResults.count > 0 ? `${currentMatchIndex + 1}/${searchResults.count}` : "0 matches"}
                 </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={goToPrevMatch}
+                  disabled={searchResults.count === 0}
+                  title="Previous match (Shift+Enter)"
+                >
+                  <ChevronUp className="w-3 h-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={goToNextMatch}
+                  disabled={searchResults.count === 0}
+                  title="Next match (Enter)"
+                >
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors ml-1"
+                  title="Clear search"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             )}
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setIsSearchOpen(false);
+              setSearchQuery("");
+            }}
+            title="Close search (Esc)"
+          >
+            <X className="w-4 h-4" />
+          </Button>
         </div>
       )}
 
@@ -445,7 +587,7 @@ const TranscriptionOutput = ({ transcription, onTextChange }: TranscriptionOutpu
                       </span>
                     </div>
                     <p className="text-sm text-foreground/90 leading-relaxed">
-                      {highlightText(group.text)}
+                      {highlightTextSimple(group.text)}
                     </p>
                   </div>
                 </div>
