@@ -41,8 +41,9 @@ const plans = [
     ],
     cta: "Subscribe Now",
     popular: true,
-    monthlyPaymentLink: "https://buy.stripe.com/test_cNicN5cXLarUfEZ0NO5sA00",
-    yearlyPaymentLink: "https://buy.stripe.com/test_4gMbJ1g9XbvYakF5445sA01",
+    // TODO: Replace with your actual Paystack payment links from your dashboard
+    monthlyPaymentLink: "https://paystack.com/pay/mwendo-pro-monthly",
+    yearlyPaymentLink: "https://paystack.com/pay/mwendo-pro-yearly",
   },
   {
     name: "Enterprise",
@@ -61,8 +62,9 @@ const plans = [
     ],
     cta: "Subscribe Now",
     popular: false,
-    monthlyPaymentLink: "https://buy.stripe.com/test_14A3cvg9XeIa50lgMM5sA02",
-    yearlyPaymentLink: "https://buy.stripe.com/test_8x24gz0aZdE63Wh1RS5sA03",
+    // TODO: Replace with your actual Paystack payment links from your dashboard
+    monthlyPaymentLink: "https://paystack.com/pay/mwendo-enterprise-monthly",
+    yearlyPaymentLink: "https://paystack.com/pay/mwendo-enterprise-yearly",
   },
 ];
 
@@ -205,7 +207,7 @@ const Pricing = () => {
             className="mt-8 text-center"
           >
             <p className="text-sm text-muted-foreground">
-              🔒 Secure payments powered by Stripe. Cancel anytime.
+              🔒 Secure payments powered by Paystack. Cancel anytime.
             </p>
           </motion.div>
 
@@ -270,7 +272,7 @@ const Pricing = () => {
               {[
                 {
                   q: "How do I subscribe?",
-                  a: "Click on 'Subscribe Now' for your preferred plan and you'll be redirected to Stripe's secure checkout. You can pay with credit/debit card."
+                  a: "Click on 'Subscribe Now' for your preferred plan and you'll be redirected to Paystack's secure checkout. You can pay with card, bank transfer, or mobile money."
                 },
                 {
                   q: "Can I cancel my subscription anytime?",
@@ -283,6 +285,10 @@ const Pricing = () => {
                 {
                   q: "What file formats are supported?",
                   a: "We currently support PDF documents for upload and export audio in MP3 format (320kbps for Pro users)."
+                },
+                {
+                  q: "What payment methods are accepted?",
+                  a: "We accept cards (Visa, Mastercard), bank transfers, USSD, and mobile money through Paystack. PayPal is also available as an alternative."
                 },
               ].map((faq, index) => (
                 <div key={index} className="glass rounded-xl p-5">
