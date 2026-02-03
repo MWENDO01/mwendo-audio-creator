@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -26,9 +25,9 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
+    const paystackKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!paystackKey) throw new Error("PAYSTACK_SECRET_KEY is not set");
+    logStep("Paystack key verified");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -43,10 +42,18 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
+    // Check if customer exists in Paystack
+    const customerResponse = await fetch(
+      `https://api.paystack.co/customer/${encodeURIComponent(user.email)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${paystackKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!customerResponse.ok) {
       logStep("No customer found, returning unsubscribed state");
       return new Response(JSON.stringify({ 
         subscribed: false,
@@ -59,40 +66,84 @@ serve(async (req) => {
       });
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    const customerData = await customerResponse.json();
+    
+    if (!customerData.status || !customerData.data) {
+      logStep("Customer not found in Paystack");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        plan: "free",
+        product_id: null,
+        subscription_end: null
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
 
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
-    const hasActiveSub = subscriptions.data.length > 0;
-    let productId = null;
+    const customerCode = customerData.data.customer_code;
+    logStep("Found Paystack customer", { customerCode });
+
+    // List subscriptions for this customer
+    const subscriptionsResponse = await fetch(
+      `https://api.paystack.co/subscription?customer=${customerCode}`,
+      {
+        headers: {
+          Authorization: `Bearer ${paystackKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!subscriptionsResponse.ok) {
+      logStep("Error fetching subscriptions");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        plan: "free",
+        product_id: null,
+        subscription_end: null
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    const subscriptionsData = await subscriptionsResponse.json();
+    const subscriptions = subscriptionsData.data || [];
+    
+    // Find active subscription
+    const activeSubscription = subscriptions.find(
+      (sub: any) => sub.status === "active" || sub.status === "non-renewing"
+    );
+
+    let hasActiveSub = !!activeSubscription;
+    let planCode = null;
     let plan = "free";
     let subscriptionEnd = null;
 
     if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
+      const subscription = activeSubscription;
+      subscriptionEnd = subscription.next_payment_date;
+      planCode = subscription.plan?.plan_code;
       
-      productId = subscription.items.data[0].price.product as string;
+      logStep("Active subscription found", { 
+        subscriptionCode: subscription.subscription_code, 
+        nextPaymentDate: subscriptionEnd,
+        planCode 
+      });
       
-      // Determine plan based on price amount
-      const priceId = subscription.items.data[0].price.id;
-      const price = await stripe.prices.retrieve(priceId);
-      const amount = price.unit_amount || 0;
+      // Determine plan based on plan amount (in kobo/cents)
+      const amount = subscription.amount || subscription.plan?.amount || 0;
       
-      // Pro plans: $6.99/month or $99/year
-      // Enterprise plans: $20.99/month or $299/year
-      if (amount >= 20000) {
+      // Pro plans: ~NGN 5,000-15,000 or ~$6.99
+      // Enterprise plans: ~NGN 15,000+ or ~$20.99
+      if (amount >= 1500000) { // NGN 15,000+ in kobo
         plan = "enterprise";
-      } else if (amount >= 500) {
+      } else if (amount >= 500) { // NGN 500+ in kobo or $5+
         plan = "pro";
       }
       
-      logStep("Determined subscription plan", { plan, productId, amount });
+      logStep("Determined subscription plan", { plan, planCode, amount });
     } else {
       logStep("No active subscription found");
     }
@@ -100,7 +151,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
       plan,
-      product_id: productId,
+      product_id: planCode,
       subscription_end: subscriptionEnd
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
