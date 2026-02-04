@@ -41,9 +41,8 @@ const plans = [
     ],
     cta: "Subscribe Now",
     popular: true,
-    // TODO: Replace with your actual Paystack payment links from your dashboard
-    monthlyPaymentLink: "https://paystack.com/pay/mwendo-pro-monthly",
-    yearlyPaymentLink: "https://paystack.com/pay/mwendo-pro-yearly",
+    monthlyPaymentLink: "https://paystack.shop/pay/mwendo-pro-monthly",
+    yearlyPaymentLink: "https://paystack.shop/pay/mwendo-pro-yearly",
   },
   {
     name: "Enterprise",
@@ -62,9 +61,8 @@ const plans = [
     ],
     cta: "Subscribe Now",
     popular: false,
-    // TODO: Replace with your actual Paystack payment links from your dashboard
-    monthlyPaymentLink: "https://paystack.com/pay/mwendo-enterprise-monthly",
-    yearlyPaymentLink: "https://paystack.com/pay/mwendo-enterprise-yearly",
+    monthlyPaymentLink: "https://paystack.shop/pay/mwendo-enterprise-monthly",
+    yearlyPaymentLink: "https://paystack.shop/pay/mwendo-enterprise-yearly",
   },
 ];
 
