@@ -9,9 +9,10 @@ interface PDFUploadProps {
   onFileSelect: (file: File, text: string) => void;
   uploadsRemaining: number;
   isPremium: boolean;
+  characterLimit?: number;
 }
 
-const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps) => {
+const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium, characterLimit }: PDFUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -138,6 +139,9 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
       return;
     }
 
+    // Check if extracted text would exceed character limit
+    const maxCharacterLimit = characterLimit || Infinity;
+
     setSelectedFile(file);
     setIsProcessing(true);
     setExtractionProgress(0);
@@ -159,6 +163,12 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium }: PDFUploadProps
         setIsProcessing(false);
         setSelectedFile(null);
         return;
+      }
+
+      // Warn if text exceeds character limit
+      if (extractedText.length > maxCharacterLimit) {
+        toast.warning(`Extracted text (${extractedText.length.toLocaleString()} chars) exceeds your limit of ${maxCharacterLimit.toLocaleString()}. Text will be truncated.`);
+        extractedText = extractedText.slice(0, maxCharacterLimit);
       }
       
       onFileSelect(file, extractedText);
