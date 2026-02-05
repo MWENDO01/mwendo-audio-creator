@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { CharacterLimitIndicator, PLAN_LIMITS } from "./CharacterLimitIndicator";
+import { CharacterLimitIndicator } from "./CharacterLimitIndicator";
 
 interface TextPreviewProps {
   text: string;
@@ -28,7 +28,7 @@ const TextPreview = ({
   const [editName, setEditName] = useState(fileName);
   const { subscription } = useAuth();
   const plan = subscription.plan;
-  const characterLimit = PLAN_LIMITS[plan];
+  const characterLimit = subscription.characterLimit;
 
   const handleCopy = async () => {
     try {

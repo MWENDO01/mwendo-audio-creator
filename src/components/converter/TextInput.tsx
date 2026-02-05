@@ -12,7 +12,7 @@ interface TextInputProps {
 const TextInput = ({ value, onChange }: TextInputProps) => {
   const { subscription } = useAuth();
   const plan = subscription.plan;
-  const characterLimit = PLAN_LIMITS[plan];
+  const characterLimit = subscription.characterLimit;
 
   return (
     <div className="space-y-4">

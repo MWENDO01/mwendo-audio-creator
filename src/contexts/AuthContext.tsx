@@ -7,6 +7,8 @@ interface SubscriptionInfo {
   plan: "free" | "pro" | "enterprise";
   productId: string | null;
   subscriptionEnd: string | null;
+  characterLimit: number;
+  pdfLimit: number | null;
 }
 
 interface AuthContextType {
@@ -26,6 +28,8 @@ const defaultSubscription: SubscriptionInfo = {
   plan: "free",
   productId: null,
   subscriptionEnd: null,
+  characterLimit: 70000,
+  pdfLimit: 3,
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,6 +62,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         plan: data.plan || "free",
         productId: data.product_id || null,
         subscriptionEnd: data.subscription_end || null,
+        characterLimit: data.character_limit ?? 70000,
+        pdfLimit: data.pdf_limit ?? 3,
       });
     } catch (error) {
       console.error("Error checking subscription:", error);

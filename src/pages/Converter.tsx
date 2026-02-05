@@ -50,7 +50,9 @@ const Converter = () => {
   const navigate = useNavigate();
   
   const isPremium = subscription.subscribed;
-  const uploadsRemaining = 3 - uploadsUsed;
+  const characterLimit = subscription.characterLimit;
+  const pdfLimit = subscription.pdfLimit;
+  const uploadsRemaining = pdfLimit ? Math.max(pdfLimit - uploadsUsed, 0) : Infinity;
 
   const handlePDFUpload = async (file: File, text: string) => {
     const pdfName = file.name.replace(".pdf", "");
@@ -234,6 +236,11 @@ const Converter = () => {
   };
 
   const handleConvert = async () => {
+    // Enforce character limit
+    if (inputText.length > characterLimit) {
+      toast.error(`Text exceeds your plan limit of ${characterLimit.toLocaleString()} characters. Please upgrade or reduce text.`);
+      return;
+    }
     await generateAudio(inputText, fileName);
   };
 
@@ -337,8 +344,9 @@ const Converter = () => {
                           >
                             <PDFUpload
                               onFileSelect={handlePDFUpload}
-                              uploadsRemaining={uploadsRemaining}
+                              uploadsRemaining={uploadsRemaining === Infinity ? 999 : uploadsRemaining}
                               isPremium={isPremium}
+                              characterLimit={characterLimit}
                             />
                           </motion.div>
                         )}
@@ -364,8 +372,9 @@ const Converter = () => {
                           >
                             <BatchPDFUpload
                               onFilesProcessed={handleBatchFilesProcessed}
-                              uploadsRemaining={uploadsRemaining}
+                              uploadsRemaining={uploadsRemaining === Infinity ? 999 : uploadsRemaining}
                               isPremium={isPremium}
+                              characterLimit={characterLimit}
                             />
                           </motion.div>
                         )}

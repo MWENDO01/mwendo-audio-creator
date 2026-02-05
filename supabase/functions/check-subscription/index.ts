@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
@@ -25,10 +25,6 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const paystackKey = Deno.env.get("PAYSTACK_SECRET_KEY");
-    if (!paystackKey) throw new Error("PAYSTACK_SECRET_KEY is not set");
-    logStep("Paystack key verified");
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
     logStep("Authorization header found");
@@ -42,6 +38,71 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // First, check our local subscriptions table (populated by webhook)
+    const { data: localSubscription, error: localError } = await supabaseClient
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (localError) {
+      logStep("Error checking local subscription", { error: localError.message });
+    }
+
+    if (localSubscription && localSubscription.status === "active") {
+      // Check if subscription hasn't expired
+      const periodEnd = localSubscription.current_period_end 
+        ? new Date(localSubscription.current_period_end) 
+        : null;
+      
+      const isValid = !periodEnd || periodEnd > new Date();
+      
+      if (isValid) {
+        logStep("Found valid local subscription", { 
+          plan: localSubscription.plan, 
+          status: localSubscription.status,
+          periodEnd: localSubscription.current_period_end 
+        });
+        
+        return new Response(JSON.stringify({
+          subscribed: true,
+          plan: localSubscription.plan,
+          product_id: localSubscription.paystack_subscription_code,
+          subscription_end: localSubscription.current_period_end,
+          character_limit: localSubscription.plan === "enterprise" ? null : 
+                           localSubscription.plan === "pro" ? 200000 : 70000,
+          pdf_limit: localSubscription.plan === "free" ? 3 : null,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      } else {
+        // Subscription expired, update status
+        logStep("Local subscription expired, updating status");
+        await supabaseClient
+          .from("subscriptions")
+          .update({ status: "expired" })
+          .eq("user_id", user.id);
+      }
+    }
+
+    // Fallback: Check Paystack directly (for cases where webhook hasn't fired yet)
+    const paystackKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!paystackKey) {
+      logStep("PAYSTACK_SECRET_KEY not set, returning free plan");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        plan: "free",
+        product_id: null,
+        subscription_end: null,
+        character_limit: 70000,
+        pdf_limit: 3,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     // Check if customer exists in Paystack
     const customerResponse = await fetch(
       `https://api.paystack.co/customer/${encodeURIComponent(user.email)}`,
@@ -54,12 +115,14 @@ serve(async (req) => {
     );
 
     if (!customerResponse.ok) {
-      logStep("No customer found, returning unsubscribed state");
+      logStep("No customer found in Paystack, returning free plan");
       return new Response(JSON.stringify({ 
         subscribed: false,
         plan: "free",
         product_id: null,
-        subscription_end: null
+        subscription_end: null,
+        character_limit: 70000,
+        pdf_limit: 3,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -74,7 +137,9 @@ serve(async (req) => {
         subscribed: false,
         plan: "free",
         product_id: null,
-        subscription_end: null
+        subscription_end: null,
+        character_limit: 70000,
+        pdf_limit: 3,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -96,12 +161,14 @@ serve(async (req) => {
     );
 
     if (!subscriptionsResponse.ok) {
-      logStep("Error fetching subscriptions");
+      logStep("Error fetching subscriptions from Paystack");
       return new Response(JSON.stringify({ 
         subscribed: false,
         plan: "free",
         product_id: null,
-        subscription_end: null
+        subscription_end: null,
+        character_limit: 70000,
+        pdf_limit: 3,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -113,12 +180,12 @@ serve(async (req) => {
     
     // Find active subscription
     const activeSubscription = subscriptions.find(
-      (sub: any) => sub.status === "active" || sub.status === "non-renewing"
+      (sub: { status: string }) => sub.status === "active" || sub.status === "non-renewing"
     );
 
     let hasActiveSub = !!activeSubscription;
     let planCode = null;
-    let plan = "free";
+    let plan: "free" | "pro" | "enterprise" = "free";
     let subscriptionEnd = null;
 
     if (hasActiveSub) {
@@ -126,33 +193,67 @@ serve(async (req) => {
       subscriptionEnd = subscription.next_payment_date;
       planCode = subscription.plan?.plan_code;
       
-      logStep("Active subscription found", { 
+      logStep("Active subscription found in Paystack", { 
         subscriptionCode: subscription.subscription_code, 
         nextPaymentDate: subscriptionEnd,
         planCode 
       });
       
-      // Determine plan based on plan amount (in kobo/cents)
+      // Determine plan based on plan name or amount
+      const planName = (subscription.plan?.name || "").toLowerCase();
       const amount = subscription.amount || subscription.plan?.amount || 0;
       
-      // Pro plans: ~NGN 5,000-15,000 or ~$6.99
-      // Enterprise plans: ~NGN 15,000+ or ~$20.99
-      if (amount >= 1500000) { // NGN 15,000+ in kobo
+      if (planName.includes("enterprise") || amount >= 1500000) {
         plan = "enterprise";
-      } else if (amount >= 500) { // NGN 500+ in kobo or $5+
+      } else if (planName.includes("pro") || amount >= 500) {
         plan = "pro";
       }
       
       logStep("Determined subscription plan", { plan, planCode, amount });
+
+      // Sync to local subscriptions table
+      const periodEnd = subscriptionEnd ? new Date(subscriptionEnd) : new Date();
+      if (!subscriptionEnd) {
+        // If no next payment date, calculate based on interval
+        const interval = subscription.plan?.interval || "monthly";
+        if (interval === "annually" || interval === "yearly") {
+          periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+        }
+      }
+
+      await supabaseClient
+        .from("subscriptions")
+        .upsert({
+          user_id: user.id,
+          plan,
+          status: "active",
+          interval: subscription.plan?.interval === "annually" ? "yearly" : "monthly",
+          paystack_customer_code: customerCode,
+          paystack_subscription_code: subscription.subscription_code,
+          paystack_email: user.email,
+          current_period_start: new Date().toISOString(),
+          current_period_end: periodEnd.toISOString(),
+        }, {
+          onConflict: "user_id"
+        });
+
+      logStep("Synced subscription to local database");
     } else {
-      logStep("No active subscription found");
+      logStep("No active subscription found in Paystack");
     }
+
+    const characterLimit = plan === "enterprise" ? null : plan === "pro" ? 200000 : 70000;
+    const pdfLimit = plan === "free" ? 3 : null;
 
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
       plan,
       product_id: planCode,
-      subscription_end: subscriptionEnd
+      subscription_end: subscriptionEnd,
+      character_limit: characterLimit,
+      pdf_limit: pdfLimit,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

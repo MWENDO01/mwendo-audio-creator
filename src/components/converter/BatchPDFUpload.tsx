@@ -19,9 +19,10 @@ interface BatchPDFUploadProps {
   onFilesProcessed: (files: { file: File; text: string }[]) => void;
   uploadsRemaining: number;
   isPremium: boolean;
+  characterLimit?: number;
 }
 
-const BatchPDFUpload = ({ onFilesProcessed, uploadsRemaining, isPremium }: BatchPDFUploadProps) => {
+const BatchPDFUpload = ({ onFilesProcessed, uploadsRemaining, isPremium, characterLimit }: BatchPDFUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [pdfFiles, setPdfFiles] = useState<PDFFile[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
