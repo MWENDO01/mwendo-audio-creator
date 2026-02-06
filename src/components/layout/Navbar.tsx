@@ -4,6 +4,7 @@ import { AudioLines, Menu, X, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import PlanBadge from "@/components/layout/PlanBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,6 +62,8 @@ const Navbar = () => {
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center gap-2">
             {user ? (
+              <div className="flex items-center gap-3">
+                <PlanBadge />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-2">
@@ -83,6 +86,7 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </div>
             ) : (
               <>
                 <Link to="/auth">
@@ -129,8 +133,11 @@ const Navbar = () => {
               {user ? (
                 <>
                   <div className="border-t border-border my-2" />
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    Signed in as {user.email}
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-sm text-muted-foreground truncate">
+                      {user.email}
+                    </span>
+                    <PlanBadge />
                   </div>
                   <Button
                     variant="outline"
