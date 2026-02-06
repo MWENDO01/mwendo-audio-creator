@@ -60,31 +60,44 @@ function verifyPaystackSignature(
   return hash === signature;
 }
 
-function extractPlanFromReference(reference: string): {
+function extractPlanFromReference(reference: string, planData?: { name?: string; plan_code?: string }): {
   plan: "pro" | "enterprise";
   interval: "monthly" | "yearly";
 } | null {
-  // Payment link references follow pattern: mwendo-{plan}-{interval}
-  const lowerRef = reference.toLowerCase();
+  // Try strict pattern matching first
+  const strictPattern = /^mwendo-(pro|enterprise)-(monthly|yearly)/i;
+  const strictMatch = reference.match(strictPattern);
   
-  let plan: "pro" | "enterprise" = "pro";
-  let interval: "monthly" | "yearly" = "monthly";
-  
-  if (lowerRef.includes("enterprise")) {
-    plan = "enterprise";
-  } else if (lowerRef.includes("pro")) {
-    plan = "pro";
-  } else {
-    return null;
+  if (strictMatch) {
+    return {
+      plan: strictMatch[1].toLowerCase() as "pro" | "enterprise",
+      interval: strictMatch[2].toLowerCase() as "monthly" | "yearly",
+    };
   }
   
-  if (lowerRef.includes("yearly") || lowerRef.includes("annual")) {
-    interval = "yearly";
-  } else if (lowerRef.includes("monthly")) {
-    interval = "monthly";
+  // Log suspicious reference for audit
+  console.warn(`Non-standard reference format: "${reference}". Falling back to plan data verification.`);
+  
+  // Fallback: Cross-check with Paystack plan data if available
+  if (planData?.name) {
+    const planName = planData.name.toLowerCase();
+    let plan: "pro" | "enterprise" = "pro";
+    let interval: "monthly" | "yearly" = "monthly";
+    
+    if (planName.includes("enterprise")) {
+      plan = "enterprise";
+    }
+    if (planName.includes("year") || planName.includes("annual")) {
+      interval = "yearly";
+    }
+    
+    console.log(`Verified plan from Paystack data: plan=${plan}, interval=${interval}`);
+    return { plan, interval };
   }
   
-  return { plan, interval };
+  // If no valid pattern and no plan data, return null (don't guess)
+  console.error(`Cannot determine plan from reference "${reference}" - no plan data available`);
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -144,13 +157,19 @@ Deno.serve(async (req) => {
         
         console.log(`Processing successful charge for ${customerEmail}`);
         
-        // Extract plan details from reference
-        const planDetails = extractPlanFromReference(reference);
+        // Extract plan details from reference with Paystack plan data verification
+        const planDetails = extractPlanFromReference(reference, event.data.plan);
         
         if (!planDetails) {
-          console.log("Could not extract plan from reference:", reference);
-          // Still process but with default plan
+          console.error("Could not determine plan from reference or plan data:", reference);
+          // Don't process subscription without valid plan
+          return new Response(
+            JSON.stringify({ received: true, message: "Invalid plan reference" }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
+        
+        console.log(`Extracted plan: ${planDetails.plan}, interval: ${planDetails.interval}`);
         
         // Find user by email
         const { data: users, error: userError } = await supabase.auth.admin.listUsers();
@@ -175,7 +194,7 @@ Deno.serve(async (req) => {
         // Calculate subscription period (1 month or 1 year from now)
         const now = new Date();
         const periodEnd = new Date(now);
-        if (planDetails?.interval === "yearly") {
+        if (planDetails.interval === "yearly") {
           periodEnd.setFullYear(periodEnd.getFullYear() + 1);
         } else {
           periodEnd.setMonth(periodEnd.getMonth() + 1);
@@ -186,9 +205,9 @@ Deno.serve(async (req) => {
           .from("subscriptions")
           .upsert({
             user_id: user.id,
-            plan: planDetails?.plan || "pro",
+            plan: planDetails.plan,
             status: "active",
-            interval: planDetails?.interval || "monthly",
+            interval: planDetails.interval,
             paystack_customer_code: customerCode,
             paystack_subscription_code: event.data.subscription_code || null,
             paystack_email: customerEmail,

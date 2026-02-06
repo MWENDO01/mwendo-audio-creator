@@ -47,7 +47,10 @@ serve(async (req) => {
     
     if (!ELEVENLABS_API_KEY) {
       console.error("ELEVENLABS_API_KEY is not configured");
-      throw new Error("ElevenLabs API key is not configured");
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable", code: "SERVICE_ERROR" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const formData = await req.formData();
@@ -102,9 +105,9 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Transcription error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    // Sanitize error message - don't leak implementation details
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Transcription failed", code: "TRANSCRIPTION_ERROR" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
