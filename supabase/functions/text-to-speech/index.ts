@@ -540,18 +540,69 @@ serve(async (req) => {
       );
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = claimsData.claims.sub as string;
     console.log(`Authenticated user: ${userId}`);
 
+    // Check subscription and enforce character limits server-side
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    const { data: subscription } = await serviceClient
+      .from("subscriptions")
+      .select("plan, status, current_period_end")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    // Determine plan and character limit
+    let plan: "free" | "pro" | "enterprise" = "free";
+    const isActive = subscription?.status === "active";
+    const periodEnd = subscription?.current_period_end 
+      ? new Date(subscription.current_period_end) 
+      : null;
+    const isValid = isActive && (!periodEnd || periodEnd > new Date());
+
+    if (isValid && subscription?.plan) {
+      plan = subscription.plan as "free" | "pro" | "enterprise";
+    }
+
+    const characterLimits = { free: 70000, pro: 200000, enterprise: Infinity };
+    const characterLimit = characterLimits[plan];
+
+    console.log(`User plan: ${plan}, character limit: ${characterLimit}`);
+
     const { text, voiceId, language, enableMultiVoice = true, voiceSettings } = await req.json();
+
+    // Enforce character limit server-side
+    if (text && text.length > characterLimit) {
+      console.error(`Character limit exceeded: ${text.length} > ${characterLimit} for plan ${plan}`);
+      return new Response(
+        JSON.stringify({ 
+          error: "Character limit exceeded for your plan",
+          code: "LIMIT_EXCEEDED",
+          limit: characterLimit,
+          current: text.length,
+        }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
 
     if (!ELEVENLABS_API_KEY) {
-      throw new Error("ELEVENLABS_API_KEY not configured");
+      console.error("ELEVENLABS_API_KEY not configured");
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable", code: "SERVICE_ERROR" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!text || !voiceId) {
-      throw new Error("Missing required parameters: text and voiceId");
+      return new Response(
+        JSON.stringify({ error: "Missing required parameters", code: "INVALID_REQUEST" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Pre-process text for natural speech
@@ -647,9 +698,9 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("TTS Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    // Sanitize error message - don't leak implementation details
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Audio generation failed", code: "GENERATION_ERROR" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
