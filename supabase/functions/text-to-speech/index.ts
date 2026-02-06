@@ -574,18 +574,43 @@ serve(async (req) => {
 
     const { text, voiceId, language, enableMultiVoice = true, voiceSettings } = await req.json();
 
+    // Validate required parameters first
+    if (!text || typeof text !== "string" || !voiceId || typeof voiceId !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Missing required parameters", code: "INVALID_REQUEST" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Sanitize text input
+    const sanitizedText = text
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Remove control characters (keep \n, \r, \t)
+      .trim();
+
+    if (sanitizedText.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Text cannot be empty", code: "INVALID_REQUEST" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Enforce character limit server-side
-    if (text && text.length > characterLimit) {
-      console.error(`Character limit exceeded: ${text.length} > ${characterLimit} for plan ${plan}`);
+    if (sanitizedText.length > characterLimit) {
+      console.error(`Character limit exceeded: ${sanitizedText.length} > ${characterLimit} for plan ${plan}`);
       return new Response(
         JSON.stringify({ 
           error: "Character limit exceeded for your plan",
           code: "LIMIT_EXCEEDED",
           limit: characterLimit,
-          current: text.length,
+          current: sanitizedText.length,
         }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Log unusual patterns for monitoring
+    if (sanitizedText.length > 50000) {
+      console.log(`Large text request: ${sanitizedText.length} chars from user ${userId} (plan: ${plan})`);
     }
 
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
@@ -598,15 +623,8 @@ serve(async (req) => {
       );
     }
 
-    if (!text || !voiceId) {
-      return new Response(
-        JSON.stringify({ error: "Missing required parameters", code: "INVALID_REQUEST" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Pre-process text for natural speech
-    const processedText = preprocessTextForNaturalSpeech(text);
+    const processedText = preprocessTextForNaturalSpeech(sanitizedText);
     
     // Determine language code (null for auto-detect)
     const languageCode = language && language !== "auto" ? language : null;
