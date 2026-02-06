@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { Check, ChevronDown, Mic, Upload, Lock, Play, Pause, Volume2, Globe, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,15 @@ const VoiceSelector = ({
     setIsLoadingPreview(voice.id);
 
     try {
+      // Get user session for authenticated TTS access
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error("Please sign in to preview voices");
+        setIsLoadingPreview(null);
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
         {
@@ -153,7 +163,7 @@ const VoiceSelector = ({
           headers: {
             "Content-Type": "application/json",
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ 
             text: voice.previewText || `Hi, I'm ${voice.name}. This is how I sound.`, 
