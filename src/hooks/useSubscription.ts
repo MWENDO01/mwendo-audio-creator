@@ -12,9 +12,6 @@ export interface Subscription {
   plan: SubscriptionPlan;
   status: SubscriptionStatus;
   interval: SubscriptionInterval | null;
-  paystack_customer_code: string | null;
-  paystack_subscription_code: string | null;
-  paystack_email: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
   created_at: string;
@@ -29,8 +26,9 @@ export function useSubscription() {
     queryFn: async (): Promise<Subscription | null> => {
       if (!user) return null;
 
+      // Use subscriptions_public view to avoid exposing payment provider codes
       const { data, error } = await supabase
-        .from("subscriptions")
+        .from("subscriptions_public" as any)
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
@@ -40,7 +38,7 @@ export function useSubscription() {
         throw error;
       }
 
-      return data as Subscription | null;
+      return (data as unknown) as Subscription | null;
     },
     enabled: !!user,
   });
