@@ -231,10 +231,10 @@ const Pricing = () => {
                 Send payment to our PayPal account
               </p>
               <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg p-3">
-                <span className="font-mono text-sm md:text-base">davidmwendo64@gmail.com</span>
+                <span className="font-mono text-sm md:text-base">mwendotechs@gmail.com</span>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText("davidmwendo64@gmail.com");
+                    navigator.clipboard.writeText("mwendotechs@gmail.com");
                     toast.success("PayPal email copied!");
                   }}
                   className="p-1.5 hover:bg-secondary rounded-md transition-colors"
@@ -243,7 +243,7 @@ const Pricing = () => {
                 </button>
               </div>
               <a
-                href="https://paypal.me/davidmwendo64"
+                href="https://paypal.me/mwendotechs"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block mt-3 text-sm text-primary hover:underline"
@@ -252,7 +252,7 @@ const Pricing = () => {
               </a>
             </div>
             <p className="text-center text-sm text-muted-foreground mt-6">
-              After payment, send your receipt to <strong>davidmwendo64@gmail.com</strong> to activate your subscription.
+              After payment, send your receipt to <strong>mwendotechs@gmail.com</strong> to activate your subscription.
             </p>
           </motion.div>
 
