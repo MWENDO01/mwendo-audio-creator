@@ -19,6 +19,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAudioStorage } from "@/hooks/useAudioStorage";
 import { supabase } from "@/integrations/supabase/client";
+import { getSignedAudioUrl } from "@/lib/audioUrl";
 import { Progress } from "@/components/ui/progress";
 
 interface BatchFile {
@@ -136,7 +137,7 @@ const Converter = () => {
         }
 
         const audioBlob = await response.blob();
-        const publicUrl = await uploadAudio(audioBlob, file.fileName);
+        const storagePath = await uploadAudio(audioBlob, file.fileName);
 
         await supabase.from("audio_conversions").insert({
           user_id: user.id,
@@ -146,7 +147,7 @@ const Converter = () => {
           voice_name: selectedVoice.name,
           character_count: file.text.length,
           status: "completed",
-          audio_url: publicUrl,
+          audio_url: storagePath,
           duration_seconds: Math.ceil(file.text.length / 15),
           file_size_bytes: audioBlob.size,
         });
@@ -214,7 +215,7 @@ const Converter = () => {
       }
 
       const audioBlob = await response.blob();
-      const publicUrl = await uploadAudio(audioBlob, name);
+      const storagePath = await uploadAudio(audioBlob, name);
       
       const { error: dbError } = await supabase
         .from("audio_conversions")
@@ -226,7 +227,7 @@ const Converter = () => {
           voice_name: selectedVoice.name,
           character_count: text.length,
           status: "completed",
-          audio_url: publicUrl,
+          audio_url: storagePath,
           duration_seconds: Math.ceil(text.length / 15),
           file_size_bytes: audioBlob.size,
         });
@@ -235,7 +236,8 @@ const Converter = () => {
         throw dbError;
       }
       
-      setAudioUrl(publicUrl);
+      const signed = await getSignedAudioUrl(storagePath);
+      setAudioUrl(signed);
       toast.success("Audio generated and saved successfully!");
     } catch (error) {
       console.error("Error generating audio:", error);
