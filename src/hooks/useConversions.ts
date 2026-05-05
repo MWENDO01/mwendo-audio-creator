@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { pathFromAudioUrl } from "@/lib/audioUrl";
 
 export interface AudioConversion {
   id: string;
@@ -63,10 +64,8 @@ export const useConversions = () => {
       // Delete from storage if audio_url exists
       if (conversion?.audio_url) {
         try {
-          const url = new URL(conversion.audio_url);
-          const pathParts = url.pathname.split("/audio-files/");
-          if (pathParts.length >= 2) {
-            const filePath = decodeURIComponent(pathParts[1]);
+          const filePath = pathFromAudioUrl(conversion.audio_url);
+          if (filePath) {
             await supabase.storage.from("audio-files").remove([filePath]);
           }
         } catch (storageError) {

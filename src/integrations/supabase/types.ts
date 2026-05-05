@@ -62,6 +62,33 @@ export type Database = {
         }
         Relationships: []
       }
+      processed_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string | null
+          id: string
+          processed_at: string
+          provider: string
+          signature: string | null
+        }
+        Insert: {
+          event_id: string
+          event_type?: string | null
+          id?: string
+          processed_at?: string
+          provider: string
+          signature?: string | null
+        }
+        Update: {
+          event_id?: string
+          event_type?: string | null
+          id?: string
+          processed_at?: string
+          provider?: string
+          signature?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string

@@ -42,6 +42,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConversions } from "@/hooks/useConversions";
 import { format } from "date-fns";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import { getSignedAudioUrl } from "@/lib/audioUrl";
+import { toast } from "sonner";
 
 const planDetails = {
   free: {
@@ -75,6 +77,33 @@ const Dashboard = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conversionToDelete, setConversionToDelete] = useState<string | null>(null);
   const { playTrack, currentTrack } = useAudioPlayer();
+
+  const handlePlay = async (file: { id: string; name: string; audio_url: string | null }) => {
+    if (!file.audio_url) return;
+    try {
+      const url = await getSignedAudioUrl(file.audio_url);
+      playTrack({ id: file.id, name: file.name, audioUrl: url });
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not load audio");
+    }
+  };
+
+  const handleDownload = async (file: { name: string; audio_url: string | null }) => {
+    if (!file.audio_url) return;
+    try {
+      const url = await getSignedAudioUrl(file.audio_url);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${file.name}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not download audio");
+    }
+  };
   
   const currentPlan = planDetails[subscription.plan];
   const uploadLimit = currentPlan.uploadLimit;
@@ -210,7 +239,7 @@ const Dashboard = () => {
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
-                                  onClick={() => playTrack({ id: file.id, name: file.name, audioUrl: file.audio_url! })}
+                                  onClick={() => handlePlay(file)}
                                   className={currentTrack?.id === file.id ? "text-primary" : ""}
                                 >
                                   {currentTrack?.id === file.id ? (
@@ -219,10 +248,8 @@ const Dashboard = () => {
                                     <Play className="w-4 h-4" />
                                   )}
                                 </Button>
-                                <Button variant="ghost" size="icon" asChild>
-                                  <a href={file.audio_url} download>
-                                    <Download className="w-4 h-4" />
-                                  </a>
+                                <Button variant="ghost" size="icon" onClick={() => handleDownload(file)}>
+                                  <Download className="w-4 h-4" />
                                 </Button>
                               </>
                             )}
@@ -234,11 +261,9 @@ const Dashboard = () => {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="glass">
                                 {file.audio_url && (
-                                  <DropdownMenuItem asChild>
-                                    <a href={file.audio_url} download>
-                                      <Download className="w-4 h-4 mr-2" />
-                                      Download
-                                    </a>
+                                  <DropdownMenuItem onClick={() => handleDownload(file)}>
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Download
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem 
