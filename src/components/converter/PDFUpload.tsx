@@ -123,14 +123,28 @@ const PDFUpload = ({ onFileSelect, uploadsRemaining, isPremium, characterLimit }
     return fullText.trim();
   };
 
-  const processFile = async (file: File) => {
-    if (!file.type.includes("pdf")) {
-      toast.error("Please upload a PDF file");
-      return;
-    }
+  const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size must be less than 10MB");
+  const validatePdf = async (file: File): Promise<string | null> => {
+    if (!file) return "No file provided";
+    if (file.size === 0) return "File is empty";
+    if (file.size > MAX_PDF_BYTES) return "File size must be less than 10MB";
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith(".pdf")) return "File must have a .pdf extension";
+    if (file.type && file.type !== "application/pdf" && !file.type.includes("pdf")) {
+      return "File must be a PDF (application/pdf)";
+    }
+    // Magic-byte check: PDFs start with "%PDF-"
+    const head = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+    const sig = String.fromCharCode(...head);
+    if (sig !== "%PDF-") return "Invalid or corrupted PDF file";
+    return null;
+  };
+
+  const processFile = async (file: File) => {
+    const validationError = await validatePdf(file);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
