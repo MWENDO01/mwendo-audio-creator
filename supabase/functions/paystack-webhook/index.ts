@@ -51,13 +51,22 @@ interface PaystackEvent {
   };
 }
 
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
 function verifyPaystackSignature(
   payload: string,
   signature: string,
   secretKey: string
 ): boolean {
   const hash = createHmac("sha512", secretKey).update(payload).digest("hex");
-  return hash === signature;
+  return timingSafeEqual(hash, signature);
 }
 
 function extractPlanFromReference(reference: string, planData?: { name?: string; plan_code?: string }): {
@@ -143,10 +152,32 @@ Deno.serve(async (req) => {
 
     const event: PaystackEvent = JSON.parse(rawBody);
     console.log(`Received Paystack event: ${event.event}`);
-    console.log("Event data:", JSON.stringify(event.data, null, 2));
 
     // Create Supabase client with service role
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Replay protection: dedupe on (provider, event_id).
+    // Use the Paystack data.id (numeric event-resource id) plus the event name to form a stable key.
+    const eventKey = `${event.event}:${event.data?.id ?? "unknown"}:${event.data?.reference ?? ""}`;
+    const { error: dedupeError } = await supabase
+      .from("processed_webhook_events")
+      .insert({
+        provider: "paystack",
+        event_id: eventKey,
+        event_type: event.event,
+        signature,
+      });
+    if (dedupeError) {
+      // Unique violation = already processed. Acknowledge silently.
+      if ((dedupeError as { code?: string }).code === "23505") {
+        console.log(`Replay detected for event ${eventKey} — ignoring.`);
+        return new Response(
+          JSON.stringify({ received: true, replay: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.error("Replay-protection insert failed:", dedupeError);
+    }
 
     // Handle different event types
     switch (event.event) {

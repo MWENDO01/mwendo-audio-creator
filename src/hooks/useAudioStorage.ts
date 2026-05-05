@@ -1,10 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { pathFromAudioUrl } from "@/lib/audioUrl";
 
 export const useAudioStorage = () => {
   const { user } = useAuth();
 
-  const uploadAudio = async (audioBlob: Blob, fileName: string) => {
+  /**
+   * Uploads an audio blob and returns the storage path (e.g. "<userId>/name.mp3").
+   * Callers should request a signed URL via getSignedAudioUrl when playback is needed.
+   */
+  const uploadAudio = async (audioBlob: Blob, fileName: string): Promise<string> => {
     if (!user) {
       throw new Error("User must be authenticated to upload audio");
     }
@@ -24,26 +29,15 @@ export const useAudioStorage = () => {
       throw error;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("audio-files")
-      .getPublicUrl(data.path);
-
-    return urlData.publicUrl;
+    return data.path;
   };
 
-  const deleteAudio = async (audioUrl: string) => {
+  const deleteAudio = async (audioUrlOrPath: string) => {
     if (!user) {
       throw new Error("User must be authenticated to delete audio");
     }
 
-    // Extract file path from URL
-    const url = new URL(audioUrl);
-    const pathParts = url.pathname.split("/audio-files/");
-    if (pathParts.length < 2) {
-      throw new Error("Invalid audio URL");
-    }
-
-    const filePath = decodeURIComponent(pathParts[1]);
+    const filePath = pathFromAudioUrl(audioUrlOrPath);
 
     const { error } = await supabase.storage
       .from("audio-files")
