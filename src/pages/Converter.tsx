@@ -34,6 +34,7 @@ const Converter = () => {
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState("auto");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioPath, setAudioPath] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadsUsed, setUploadsUsed] = useState(0);
   const [fileName, setFileName] = useState("audio-output");
@@ -237,6 +238,7 @@ const Converter = () => {
       }
       
       const signed = await getSignedAudioUrl(storagePath);
+      setAudioPath(storagePath);
       setAudioUrl(signed);
       toast.success("Audio generated and saved successfully!");
     } catch (error) {
@@ -260,12 +262,12 @@ const Converter = () => {
     setFileName(newName);
     
     // Update in database if audio exists
-    if (audioUrl && user) {
+    if (audioPath && user) {
       try {
         const { error } = await supabase
           .from("audio_conversions")
           .update({ name: newName })
-          .eq("audio_url", audioUrl)
+          .eq("audio_url", audioPath)
           .eq("user_id", user.id);
           
         if (error) throw error;
