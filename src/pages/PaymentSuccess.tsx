@@ -70,6 +70,9 @@ const PaymentSuccess = () => {
               transition={{ delay: 0.4 }}
               className="glass rounded-2xl p-6 mb-8 text-left"
             >
+              <div className="mb-4">
+                <AccountStatusCard />
+              </div>
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
                 What's included in your plan:
