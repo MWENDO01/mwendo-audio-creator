@@ -44,6 +44,7 @@ import { format } from "date-fns";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { getSignedAudioUrl } from "@/lib/audioUrl";
 import { toast } from "sonner";
+import AccountStatusCard from "@/components/layout/AccountStatusCard";
 
 const planDetails = {
   free: {
@@ -175,6 +176,10 @@ const Dashboard = () => {
               </Button>
             </Link>
           </motion.div>
+
+          <div className="mb-6">
+            <AccountStatusCard />
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">

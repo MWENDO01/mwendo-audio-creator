@@ -6,9 +6,16 @@ import { Button } from "@/components/ui/button";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import confetti from "canvas-confetti";
+import { useQueryClient } from "@tanstack/react-query";
+import AccountStatusCard from "@/components/layout/AccountStatusCard";
 
 const PaymentSuccess = () => {
+  const queryClient = useQueryClient();
+
   useEffect(() => {
+    // Refresh subscription so the account status indicator flips to Subscriber
+    queryClient.invalidateQueries({ queryKey: ["subscription"] });
+
     // Trigger confetti on page load
     confetti({
       particleCount: 100,
@@ -16,7 +23,7 @@ const PaymentSuccess = () => {
       origin: { y: 0.6 },
       colors: ["#22d3ee", "#6366f1", "#8b5cf6"],
     });
-  }, []);
+  }, [queryClient]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -63,6 +70,9 @@ const PaymentSuccess = () => {
               transition={{ delay: 0.4 }}
               className="glass rounded-2xl p-6 mb-8 text-left"
             >
+              <div className="mb-4">
+                <AccountStatusCard />
+              </div>
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
                 What's included in your plan:
