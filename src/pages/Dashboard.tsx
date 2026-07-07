@@ -44,6 +44,7 @@ import { format } from "date-fns";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { getSignedAudioUrl } from "@/lib/audioUrl";
 import { toast } from "sonner";
+import AccountStatusCard from "@/components/layout/AccountStatusCard";
 
 const planDetails = {
   free: {
