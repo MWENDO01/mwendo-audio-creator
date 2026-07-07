@@ -1,0 +1,76 @@
+name: RLS Regression Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  subscriptions-rls:
+    name: Subscriptions billing immutability
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Bootstrap Supabase auth surface
+        run: |
+          psql <<'SQL'
+          CREATE SCHEMA IF NOT EXISTS auth;
+          CREATE TABLE IF NOT EXISTS auth.users (
+            id uuid PRIMARY KEY,
+            email text
+          );
+          CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
+            LANGUAGE sql STABLE AS $$
+              SELECT NULLIF(current_setting('request.jwt.claims', true)::jsonb ->> 'sub','')::uuid
+            $$;
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          CREATE ROLE service_role NOLOGIN BYPASSRLS;
+          GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+          SQL
+
+      - name: Apply migrations in order
+        run: |
+          set -e
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            echo "-> $f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Run subscriptions RLS regression tests
+        run: bash tests/subscriptions_rls_regression.sh | tee /tmp/rls.log
+
+      - name: Fail if any regression failed
+        run: |
+          if grep -q '^FAIL:' /tmp/rls.log; then
+            echo "::error::One or more RLS regression tests failed"
+            exit 1
+          fi
