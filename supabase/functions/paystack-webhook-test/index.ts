@@ -57,9 +57,11 @@ Deno.serve(async (req) => {
     const plan: "pro" | "enterprise" = body.plan === "enterprise" ? "enterprise" : "pro";
     const interval: "monthly" | "yearly" = body.interval === "yearly" ? "yearly" : "monthly";
     const email: string = body.email || userData.user.email || "test@example.com";
+    const planCodeOverride: string | undefined = typeof body.plan_code === "string" ? body.plan_code : undefined;
+    const referenceOverride: string | undefined = typeof body.reference === "string" ? body.reference : undefined;
 
     const eventId = Date.now();
-    const reference = `mwendo-${plan}-${interval}-test-${eventId}`;
+    const reference = referenceOverride || `mwendo-${plan}-${interval}-test-${eventId}`;
     const event = {
       event: "charge.success",
       data: {
@@ -87,7 +89,7 @@ Deno.serve(async (req) => {
         plan: {
           id: 1,
           name: `Mwendo ${plan[0].toUpperCase() + plan.slice(1)} ${interval[0].toUpperCase() + interval.slice(1)}`,
-          plan_code: `PLN_test_${plan}_${interval}`,
+          plan_code: planCodeOverride || `PLN_test_${plan}_${interval}`,
           description: null,
           amount: plan === "enterprise" ? 5000000 : 2500000,
           interval,
