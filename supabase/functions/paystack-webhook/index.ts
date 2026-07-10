@@ -69,10 +69,24 @@ function verifyPaystackSignature(
   return timingSafeEqual(hash, signature);
 }
 
+const PLAN_CODE_MAP: Record<string, { plan: "pro" | "enterprise"; interval: "monthly" | "yearly" }> = {
+  PLN_t36b6g42apm3qal: { plan: "pro", interval: "monthly" },
+  PLN_l2j0n4padowl5qe: { plan: "pro", interval: "yearly" },
+  PLN_bhu8om98kj5y9lp: { plan: "enterprise", interval: "monthly" },
+  PLN_3vi5z80lkml8x6e: { plan: "enterprise", interval: "yearly" },
+};
+
 function extractPlanFromReference(reference: string, planData?: { name?: string; plan_code?: string }): {
   plan: "pro" | "enterprise";
   interval: "monthly" | "yearly";
 } | null {
+  // Highest priority: known Paystack plan_code
+  if (planData?.plan_code && PLAN_CODE_MAP[planData.plan_code]) {
+    const mapped = PLAN_CODE_MAP[planData.plan_code];
+    console.log(`Matched plan_code ${planData.plan_code} → ${mapped.plan}/${mapped.interval}`);
+    return mapped;
+  }
+
   // Try strict pattern matching first
   const strictPattern = /^mwendo-(pro|enterprise)-(monthly|yearly)/i;
   const strictMatch = reference.match(strictPattern);
